@@ -61,31 +61,25 @@ jobs:
         run: |
           chmod +x ./gradlew
           case "$VARIANT" in
-            afatStandalone) TASK="assembleAfatStandalone" ;;
-            afatRelease)    TASK="assembleAfatRelease" ;;
-            afatDebug)      TASK="assembleAfatDebug" ;;
-            *)              TASK="assembleAfatStandalone" ;;
+            afatStandalone) TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone" ;;
+            afatRelease)    TASK=":TMessagesProj_App:assembleAfatRelease" ;;
+            afatDebug)      TASK=":TMessagesProj_App:assembleAfatDebug" ;;
+            *)              TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone" ;;
           esac
           set +e
-          ./gradlew ":TMessagesProj_App:${TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 > build.log 2>&1
+          ./gradlew "${TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 > build.log 2>&1
           EXIT_CODE=$?
           set -e
           tail -n 120 build.log
           if [ $EXIT_CODE -ne 0 ]; then
-            python3 -c '
-          with open("build.log", errors="ignore") as f:
-              lines = f.read().splitlines()
-          err = [l for l in lines if any(k in l for k in ["FAILURE:", "error:", "Exception", "Execution failed", "Caused by:", "What went wrong"])]
-          for l in (err[:10] if err else lines[-15:]):
-              print("::error::" + l[:300])
-          '
+            python3 -c 'lines=open("build.log",errors="ignore").read().splitlines(); keys=("FAILURE:","error:","Exception","Execution failed","Caused by:","What went wrong"); err=[l for l in lines if any(k in l for k in keys)]; [print("::error::"+l[:300]) for l in (err[:12] if err else lines[-15:])]'
             exit $EXIT_CODE
           fi
 
       - name: Locate generated APK
         run: |
           mkdir -p apk-output
-          find TMessagesProj_App/build/outputs/apk -name "*.apk" -exec cp -v {} apk-output/Mido-Telegram.apk \;
+          find TMessagesProj_AppStandalone/build/outputs/apk TMessagesProj_App/build/outputs/apk -name "*.apk" 2>/dev/null -exec cp -v {} apk-output/Mido-Telegram.apk \;
           ls -lh apk-output/
 
       - name: Upload APK Artifact
