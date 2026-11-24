@@ -1548,6 +1548,8 @@ public class TL_stories {
         public boolean translated; //custom
         public TLRPC.TL_textWithEntities translatedText; //custom
         public StoryPrivacyBottomSheet.StoryPrivacy parsedPrivacy; //custom
+        public boolean midoDeleted; //custom
+        public int midoDeletedTime; //custom
 
         public static StoryItem TLdeserialize(InputSerializedData stream, int constructor, boolean exception) {
             StoryItem result = null;

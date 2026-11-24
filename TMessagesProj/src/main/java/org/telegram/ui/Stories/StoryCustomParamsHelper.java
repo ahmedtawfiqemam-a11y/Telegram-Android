@@ -11,7 +11,7 @@ import org.telegram.tgnet.tl.TL_stories;
 public class StoryCustomParamsHelper {
 
     public static boolean isEmpty(TL_stories.StoryItem storyItem) {
-        return storyItem.detectedLng == null && storyItem.translatedLng == null && !storyItem.translated && storyItem.translatedText == null;
+        return storyItem.detectedLng == null && storyItem.translatedLng == null && !storyItem.translated && storyItem.translatedText == null && !storyItem.midoDeleted && storyItem.midoDeletedTime == 0;
     }
 
     public static void copyParams(TL_stories.StoryItem fromStory, TL_stories.StoryItem toStory) {
@@ -19,6 +19,8 @@ public class StoryCustomParamsHelper {
         toStory.detectedLng = fromStory.detectedLng;
         toStory.translatedText = fromStory.translatedText;
         toStory.translatedLng = fromStory.translatedLng;
+        toStory.midoDeleted = fromStory.midoDeleted;
+        toStory.midoDeletedTime = fromStory.midoDeletedTime;
     }
 
     public static void readLocalParams(TL_stories.StoryItem storyItem, NativeByteBuffer byteBuffer) {
@@ -64,6 +66,8 @@ public class StoryCustomParamsHelper {
             flags += storyItem.detectedLng != null ? 2 : 0;
             flags += storyItem.translatedText != null ? 4 : 0;
             flags += storyItem.translatedLng != null ? 8 : 0;
+            flags += storyItem.midoDeleted ? 16 : 0;
+            flags += storyItem.midoDeletedTime != 0 ? 32 : 0;
         }
 
         @Override
@@ -79,6 +83,9 @@ public class StoryCustomParamsHelper {
             if ((flags & 8) != 0) {
                 stream.writeString(storyItem.translatedLng);
             }
+            if ((flags & 32) != 0) {
+                stream.writeInt32(storyItem.midoDeletedTime);
+            }
         }
 
         @Override
@@ -93,6 +100,10 @@ public class StoryCustomParamsHelper {
             }
             if ((flags & 8) != 0) {
                 storyItem.translatedLng = stream.readString(exception);
+            }
+            storyItem.midoDeleted = (flags & 16) != 0;
+            if ((flags & 32) != 0) {
+                storyItem.midoDeletedTime = stream.readInt32(exception);
             }
         }
     }

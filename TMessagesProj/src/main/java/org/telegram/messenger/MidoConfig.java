@@ -19,7 +19,8 @@ public class MidoConfig {
     public static boolean showEditHistory = true;
     public static boolean confirmCall = true;
     public static boolean keepKickedChats = true;
-    public static boolean antiExpireStories = true;
+    public static boolean antiDeleteStories = true;
+    public static final int DELETED_STORY_RETENTION_SECONDS = 12 * 3600;
     public static boolean forceSubEnabled = false;
     public static String forceSubChannel = "@SourceMedo";
     public static String forceSubMessage = "أهلاً يا #FirstName 👋
@@ -54,7 +55,7 @@ public class MidoConfig {
         showEditHistory = preferences.getBoolean("showEditHistory", true);
         confirmCall = preferences.getBoolean("confirmCall", true);
         keepKickedChats = preferences.getBoolean("keepKickedChats", true);
-        antiExpireStories = preferences.getBoolean("antiExpireStories", true);
+        antiDeleteStories = preferences.getBoolean("antiDeleteStories", true);
         forceSubEnabled = preferences.getBoolean("forceSubEnabled", false);
         forceSubChannel = preferences.getString("forceSubChannel", "@SourceMedo");
         forceSubMessage = preferences.getString("forceSubMessage", "أهلاً يا #FirstName 👋
@@ -209,9 +210,9 @@ public class MidoConfig {
         savePreference("keepKickedChats", enabled);
     }
 
-    public static void setAntiExpireStories(boolean enabled) {
-        antiExpireStories = enabled;
-        savePreference("antiExpireStories", enabled);
+    public static void setAntiDeleteStories(boolean enabled) {
+        antiDeleteStories = enabled;
+        savePreference("antiDeleteStories", enabled);
     }
 
     public static void setForceSubEnabled(boolean enabled) {

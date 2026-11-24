@@ -90,6 +90,7 @@ import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
@@ -5330,6 +5331,19 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 }
             }
             if (subtitle != null) {
+                if (MidoConfig.antiDeleteStories && currentStory.storyItem != null && currentStory.storyItem.midoDeleted) {
+                    if (!(subtitle instanceof SpannableStringBuilder)) {
+                        subtitle = new SpannableStringBuilder(subtitle);
+                    }
+                    SpannableStringBuilder sbDel = (SpannableStringBuilder) subtitle;
+                    DotDividerSpan dotDividerSpan = new DotDividerSpan();
+                    dotDividerSpan.setTopPadding(AndroidUtilities.dp(1.5f));
+                    dotDividerSpan.setSize(5);
+                    sbDel.append(" . ").setSpan(dotDividerSpan, sbDel.length() - 2, sbDel.length() - 1, 0);
+                    int start = sbDel.length();
+                    sbDel.append("محذوفة 🗑");
+                    sbDel.setSpan(new android.text.style.ForegroundColorSpan(0xFFFF6B6B), start, sbDel.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
                 if (storyViewer != null && storyViewer.storiesList != null && currentStory.storyItem != null && storyViewer.storiesList.isPinned(currentStory.storyItem.id)) {
                     if (!(subtitle instanceof SpannableStringBuilder)) {
                         subtitle = new SpannableStringBuilder(subtitle);

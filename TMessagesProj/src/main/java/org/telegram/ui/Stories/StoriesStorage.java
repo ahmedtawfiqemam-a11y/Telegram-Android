@@ -15,6 +15,7 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.Timer;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
@@ -149,7 +150,8 @@ public class StoriesStorage {
         ArrayList<TL_stories.StoryItem> storiesToDelete = null;
         for (int i = 0; i < stories.size(); i++) {
             TL_stories.StoryItem storyItem = stories.get(i);
-            if (!MidoConfig.antiExpireStories && currentTime > stories.get(i).expire_date) {
+            boolean midoShouldDelete = storyItem.midoDeleted ? isMidoDeletedExpired(currentAccount, storyItem) : (currentTime > stories.get(i).expire_date);
+            if (midoShouldDelete) {
                 if (storiesToDeleteIds == null) {
                     storiesToDeleteIds = new ArrayList<>();
                     storiesToDelete = new ArrayList<>();
@@ -250,6 +252,7 @@ public class StoriesStorage {
                 TL_stories.PeerStories stories = user_stories.get(i);
                 fillSkippedStories(DialogObject.getPeerDialogId(stories.peer), stories);
             }
+            LongSparseArray<ArrayList<TL_stories.StoryItem>> midoPreserved = null;
             if (!isNext) {
                 try {
                     SQLiteCursor cursor = database.queryFinalized("SELECT DISTINCT dialog_id FROM stories");
@@ -275,6 +278,67 @@ public class StoriesStorage {
                             }
                         }
                     }
+                    cursor.dispose();
+                    if (MidoConfig.antiDeleteStories && !dialogsToDelete.isEmpty()) {
+                        midoPreserved = new LongSparseArray<>();
+                        int currentTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                        long selfId = UserConfig.getInstance(currentAccount).clientUserId;
+                        LongSparseArray<java.util.HashSet<Integer>> incomingIds = new LongSparseArray<>();
+                        for (int i = 0; i < user_stories.size(); i++) {
+                            TL_stories.PeerStories ps = user_stories.get(i);
+                            long did = DialogObject.getPeerDialogId(ps.peer);
+                            java.util.HashSet<Integer> ids = incomingIds.get(did);
+                            if (ids == null) {
+                                ids = new java.util.HashSet<>();
+                                incomingIds.put(did, ids);
+                            }
+                            for (int j = 0; j < ps.stories.size(); j++) {
+                                ids.add(ps.stories.get(j).id);
+                            }
+                        }
+                        SQLiteCursor keepCursor = database.queryFinalized(String.format(Locale.US, "SELECT dialog_id, data, custom_params FROM stories WHERE dialog_id IN(%s)", TextUtils.join(",", dialogsToDelete)));
+                        while (keepCursor.next()) {
+                            long did = keepCursor.longValue(0);
+                            if (did == selfId) {
+                                continue;
+                            }
+                            NativeByteBuffer data = keepCursor.byteBufferValue(1);
+                            NativeByteBuffer customData = keepCursor.byteBufferValue(2);
+                            TL_stories.StoryItem dbStory = null;
+                            if (data != null) {
+                                dbStory = TL_stories.StoryItem.TLdeserialize(data, data.readInt32(true), true);
+                                data.reuse();
+                            }
+                            if (dbStory != null) {
+                                dbStory.dialogId = did;
+                                StoryCustomParamsHelper.readLocalParams(dbStory, customData);
+                            }
+                            if (customData != null) {
+                                customData.reuse();
+                            }
+                            if (dbStory == null || dbStory instanceof TL_stories.TL_storyItemDeleted) {
+                                continue;
+                            }
+                            java.util.HashSet<Integer> ids = incomingIds.get(did);
+                            if (ids != null && ids.contains(dbStory.id)) {
+                                continue;
+                            }
+                            boolean keep = dbStory.midoDeleted ? !isMidoDeletedExpired(currentAccount, dbStory) : (currentTime <= dbStory.expire_date);
+                            if (keep) {
+                                dbStory.midoDeleted = true;
+                                if (dbStory.midoDeletedTime == 0) {
+                                    dbStory.midoDeletedTime = currentTime;
+                                }
+                                ArrayList<TL_stories.StoryItem> list = midoPreserved.get(did);
+                                if (list == null) {
+                                    list = new ArrayList<>();
+                                    midoPreserved.put(did, list);
+                                }
+                                list.add(dbStory);
+                            }
+                        }
+                        keepCursor.dispose();
+                    }
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.d("StoriesStorage delete dialogs " + TextUtils.join(",", dialogsToDelete));
                     }
@@ -286,6 +350,15 @@ public class StoriesStorage {
             for (int i = 0; i < user_stories.size(); i++) {
                 TL_stories.PeerStories stories = user_stories.get(i);
                 putStoriesInternal(DialogObject.getPeerDialogId(stories.peer), stories);
+            }
+            if (midoPreserved != null) {
+                for (int i = 0; i < midoPreserved.size(); i++) {
+                    long did = midoPreserved.keyAt(i);
+                    ArrayList<TL_stories.StoryItem> list = midoPreserved.valueAt(i);
+                    for (int j = 0; j < list.size(); j++) {
+                        putStoryInternal(did, list.get(j));
+                    }
+                }
             }
             if (callback != null) {
                 AndroidUtilities.runOnUIThread(callback);
@@ -477,12 +550,13 @@ public class StoriesStorage {
                 int storyId = updateStory.story.id;
                 boolean storyExist = false;
                 if (updateStory.story instanceof TL_stories.TL_storyItemDeleted) {
+                    TL_stories.StoryItem storyItem = null;
                     cursor = database.queryFinalized(String.format(Locale.US, "SELECT data, custom_params FROM stories WHERE dialog_id = %d AND story_id = %d", dialogId, storyId));
                     if (cursor.next()) {
                         NativeByteBuffer data = cursor.byteBufferValue(0);
                         NativeByteBuffer customData = cursor.byteBufferValue(1);
                         if (data != null) {
-                            TL_stories.StoryItem storyItem = TL_stories.StoryItem.TLdeserialize(data, data.readInt32(true), true);
+                            storyItem = TL_stories.StoryItem.TLdeserialize(data, data.readInt32(true), true);
                             StoryCustomParamsHelper.readLocalParams(storyItem, customData);
                             data.reuse();
                         }
@@ -492,9 +566,18 @@ public class StoriesStorage {
                         storyExist = true;
                     }
                     cursor.dispose();
-                    database.executeFast(String.format(Locale.US, "DELETE FROM stories WHERE dialog_id = %d AND story_id = %d", dialogId, storyId)).stepThis().dispose();
-                    if (storyExist) {
-                        count--;
+                    if (MidoConfig.antiDeleteStories && dialogId != UserConfig.getInstance(currentAccount).clientUserId && storyItem != null && !(storyItem instanceof TL_stories.TL_storyItemDeleted)) {
+                        storyItem.dialogId = dialogId;
+                        storyItem.midoDeleted = true;
+                        if (storyItem.midoDeletedTime == 0) {
+                            storyItem.midoDeletedTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                        }
+                        updateStoryItemInternal(dialogId, storyItem);
+                    } else {
+                        database.executeFast(String.format(Locale.US, "DELETE FROM stories WHERE dialog_id = %d AND story_id = %d", dialogId, storyId)).stepThis().dispose();
+                        if (storyExist) {
+                            count--;
+                        }
                     }
                 } else if (updateStory.story instanceof TL_stories.TL_storyItem) {
                     updateStoryItemInternal(dialogId, updateStory.story);
@@ -755,12 +838,31 @@ public class StoriesStorage {
         } else {
             expired = currentTime - storyItem.date > EXPIRE_AFTER;
         }
-        if (!MidoConfig.antiExpireStories && !storyItem.pinned && expired && dialogId != 0 && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
+        if (storyItem.midoDeleted) {
+            if (!isMidoDeletedExpired(currentAccount, storyItem)) {
+                return storyItem;
+            }
+            TL_stories.TL_storyItemDeleted storyItemDeleted = new TL_stories.TL_storyItemDeleted();
+            storyItemDeleted.id = storyItem.id;
+            return storyItemDeleted;
+        }
+        if (!storyItem.pinned && expired && dialogId != 0 && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
             TL_stories.TL_storyItemDeleted storyItemDeleted = new TL_stories.TL_storyItemDeleted();
             storyItemDeleted.id = storyItem.id;
             return storyItemDeleted;
         }
         return storyItem;
+    }
+
+    public static boolean isMidoDeletedExpired(int currentAccount, TL_stories.StoryItem storyItem) {
+        if (storyItem == null || !storyItem.midoDeleted) {
+            return false;
+        }
+        if (!MidoConfig.antiDeleteStories) {
+            return true;
+        }
+        int currentTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+        return storyItem.midoDeletedTime > 0 && (currentTime - storyItem.midoDeletedTime) >= MidoConfig.DELETED_STORY_RETENTION_SECONDS;
     }
 
     public void getMaxReadIds(Utilities.Callback<LongSparseIntArray> consumer) {

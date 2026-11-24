@@ -32,6 +32,7 @@ import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
@@ -441,7 +442,82 @@ public class StoriesController {
         }));
     }
 
+    private void preserveMidoDeletedStoriesInAllResponse(TL_stories.TL_stories_allStories storiesResponse, boolean hidden) {
+        if (!MidoConfig.antiDeleteStories || storiesResponse == null || storiesResponse.peer_stories == null) {
+            return;
+        }
+        int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+        long selfId = UserConfig.getInstance(currentAccount).clientUserId;
+        LongSparseArray<TL_stories.PeerStories> responseMap = new LongSparseArray<>();
+        for (int i = 0; i < storiesResponse.peer_stories.size(); i++) {
+            TL_stories.PeerStories ps = storiesResponse.peer_stories.get(i);
+            responseMap.put(DialogObject.getPeerDialogId(ps.peer), ps);
+        }
+        for (int k = 0; k < allStoriesMap.size(); k++) {
+            long dialogId = allStoriesMap.keyAt(k);
+            if (dialogId == selfId) {
+                continue;
+            }
+            boolean peerHidden;
+            if (dialogId > 0) {
+                TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(dialogId);
+                if (user == null) continue;
+                peerHidden = user.stories_hidden;
+            } else {
+                TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
+                if (chat == null) continue;
+                peerHidden = chat.stories_hidden;
+            }
+            if (peerHidden != hidden) {
+                continue;
+            }
+            TL_stories.PeerStories oldPeer = allStoriesMap.valueAt(k);
+            if (oldPeer == null || oldPeer.stories == null) {
+                continue;
+            }
+            TL_stories.PeerStories targetPeer = responseMap.get(dialogId);
+            for (int i = 0; i < oldPeer.stories.size(); i++) {
+                TL_stories.StoryItem oldStory = oldPeer.stories.get(i);
+                if (!(oldStory instanceof TL_stories.TL_storyItem)) {
+                    continue;
+                }
+                boolean exists = false;
+                if (targetPeer != null && targetPeer.stories != null) {
+                    for (int j = 0; j < targetPeer.stories.size(); j++) {
+                        if (targetPeer.stories.get(j).id == oldStory.id) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                }
+                if (!exists) {
+                    boolean keep = oldStory.midoDeleted ? !StoriesStorage.isMidoDeletedExpired(currentAccount, oldStory) : (now <= oldStory.expire_date);
+                    if (keep) {
+                        oldStory.midoDeleted = true;
+                        if (oldStory.midoDeletedTime == 0) {
+                            oldStory.midoDeletedTime = now;
+                        }
+                        if (targetPeer == null) {
+                            targetPeer = new TL_stories.TL_peerStories();
+                            targetPeer.peer = oldPeer.peer;
+                            targetPeer.max_read_id = oldPeer.max_read_id;
+                            storiesResponse.peer_stories.add(targetPeer);
+                            responseMap.put(dialogId, targetPeer);
+                        }
+                        targetPeer.stories.add(oldStory);
+                    }
+                }
+            }
+            if (targetPeer != null && targetPeer.stories != null && !targetPeer.stories.isEmpty()) {
+                Collections.sort(targetPeer.stories, storiesComparator);
+            }
+        }
+    }
+
     private void processAllStoriesResponse(TL_stories.TL_stories_allStories storiesResponse, boolean hidden, boolean fromCache, boolean isNext) {
+        if (!fromCache && !isNext) {
+            preserveMidoDeletedStoriesInAllResponse(storiesResponse, hidden);
+        }
         if (!isNext) {
             if (!hidden) {
                 //allStoriesMap.clear();
@@ -471,7 +547,7 @@ public class StoriesController {
             for (int j = 0; j < userStories.stories.size(); j++) {
                 TL_stories.StoryItem story = userStories.stories.get(j);
                 if (story instanceof TL_stories.TL_storyItemDeleted ||
-                    story instanceof TL_stories.TL_storyItem && now > story.expire_date && !(story.media instanceof TLRPC.TL_messageMediaVideoStream)) {
+                    story instanceof TL_stories.TL_storyItem && (story.midoDeleted ? StoriesStorage.isMidoDeletedExpired(currentAccount, story) : (now > story.expire_date && !(story.media instanceof TLRPC.TL_messageMediaVideoStream)))) {
                     NotificationsController.getInstance(currentAccount).processDeleteStory(dialogId, story.id);
                     userStories.stories.remove(j);
                     j--;
@@ -838,6 +914,10 @@ public class StoriesController {
             // privacy and views shouldn't be copied when min=true
             return oldStoryItem;
         }
+        if (oldStoryItem.midoDeleted) {
+            newStoryItem.midoDeleted = true;
+            newStoryItem.midoDeletedTime = oldStoryItem.midoDeletedTime;
+        }
         return newStoryItem;
     }
 
@@ -881,9 +961,19 @@ public class StoriesController {
                     if (currentUserStory.stories.get(i).id == newStory.id) {
                         found = true;
                         if (newStory instanceof TL_stories.TL_storyItemDeleted) {
-                            currentUserStory.stories.remove(i);
-                            FileLog.d("StoriesController remove story id=" + newStory.id);
-                            changed = true;
+                            if (MidoConfig.antiDeleteStories && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
+                                TL_stories.StoryItem oldStory = currentUserStory.stories.get(i);
+                                oldStory.midoDeleted = true;
+                                if (oldStory.midoDeletedTime == 0) {
+                                    oldStory.midoDeletedTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                                }
+                                notify = true;
+                                FileLog.d("StoriesController Mido kept deleted story id=" + newStory.id);
+                            } else {
+                                currentUserStory.stories.remove(i);
+                                FileLog.d("StoriesController remove story id=" + newStory.id);
+                                changed = true;
+                            }
                         } else {
                             TL_stories.StoryItem oldStory = currentUserStory.stories.get(i);
                             newStory = applyStoryUpdate(oldStory, newStory);
@@ -960,7 +1050,7 @@ public class StoriesController {
             fixDeletedAndNonContactsStories(dialogListStories);
             fixDeletedAndNonContactsStories(hiddenListStories);
             if (notify) {
-                if (updateStory.story instanceof TL_stories.TL_storyItemDeleted) {
+                if (updateStory.story instanceof TL_stories.TL_storyItemDeleted && (!MidoConfig.antiDeleteStories || dialogId == UserConfig.getInstance(currentAccount).clientUserId)) {
                     NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.storyDeleted, dialogId, updateStory.story.id);
                 }
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.storiesUpdated);
@@ -1003,7 +1093,15 @@ public class StoriesController {
                 if (peerStories.stories.get(i).id == newStory.id) {
                     found = true;
                     if (newStory instanceof TL_stories.TL_storyItemDeleted) {
-                        peerStories.stories.remove(i);
+                        if (MidoConfig.antiDeleteStories && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
+                            TL_stories.StoryItem oldStory = peerStories.stories.get(i);
+                            oldStory.midoDeleted = true;
+                            if (oldStory.midoDeletedTime == 0) {
+                                oldStory.midoDeletedTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                            }
+                        } else {
+                            peerStories.stories.remove(i);
+                        }
                     } else {
                         TL_stories.StoryItem oldStory = peerStories.stories.get(i);
                         newStory = applyStoryUpdate(oldStory, newStory);
@@ -1104,6 +1202,34 @@ public class StoriesController {
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(user_id);
             TL_stories.PeerStories stories = stories_userStories.stories;
             long dialogId = DialogObject.getPeerDialogId(stories.peer);
+            if (MidoConfig.antiDeleteStories && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
+                TL_stories.PeerStories oldPeer = allStoriesMap.get(dialogId);
+                if (oldPeer != null && oldPeer.stories != null) {
+                    int now = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                    for (int i = 0; i < oldPeer.stories.size(); i++) {
+                        TL_stories.StoryItem oldStory = oldPeer.stories.get(i);
+                        if (!(oldStory instanceof TL_stories.TL_storyItem)) continue;
+                        boolean exists = false;
+                        for (int j = 0; j < stories.stories.size(); j++) {
+                            if (stories.stories.get(j).id == oldStory.id) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            boolean keep = oldStory.midoDeleted ? !StoriesStorage.isMidoDeletedExpired(currentAccount, oldStory) : (now <= oldStory.expire_date);
+                            if (keep) {
+                                oldStory.midoDeleted = true;
+                                if (oldStory.midoDeletedTime == 0) {
+                                    oldStory.midoDeletedTime = now;
+                                }
+                                stories.stories.add(oldStory);
+                            }
+                        }
+                    }
+                    Collections.sort(stories.stories, storiesComparator);
+                }
+            }
             allStoriesMap.put(dialogId, stories);
             if (user != null && (isContactOrService(user) || user.self)) {
                 applyToList(stories);
@@ -4035,6 +4161,16 @@ public class StoriesController {
                 }
 
                 if (storyItem instanceof TL_stories.TL_storyItemDeleted) {
+                    if (MidoConfig.antiDeleteStories && dialogId != UserConfig.getInstance(currentAccount).clientUserId && contains) {
+                        MessageObject msgObj = messageObjectsMap.get(storyItem.id);
+                        if (msgObj != null && msgObj.storyItem != null) {
+                            msgObj.storyItem.midoDeleted = true;
+                            if (msgObj.storyItem.midoDeletedTime == 0) {
+                                msgObj.storyItem.midoDeletedTime = ConnectionsManager.getInstance(currentAccount).getCurrentTime();
+                            }
+                        }
+                        continue;
+                    }
                     shouldContain = false;
                 }
                 if (contains != shouldContain) {

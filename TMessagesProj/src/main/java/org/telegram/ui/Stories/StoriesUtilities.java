@@ -1070,6 +1070,12 @@ public class StoriesUtilities {
     }
 
     public static boolean isExpired(int currentAccount, TL_stories.StoryItem storyItem) {
+        if (storyItem == null) {
+            return true;
+        }
+        if (storyItem.midoDeleted) {
+            return StoriesStorage.isMidoDeletedExpired(currentAccount, storyItem);
+        }
         return ConnectionsManager.getInstance(currentAccount).getCurrentTime() > storyItem.expire_date;
     }
 

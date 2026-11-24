@@ -121,9 +121,9 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setChecked(MidoConfig.stealthStories)
                 .setValue("مشاهدة قصص وحالات الآخرين دون معرفتهم ودون تسجيل اسمك في المشاهدات"));
 
-        items.add(UItem.asCheck(27, "بقاء الاستوريات 7+ أيام وللأبد ⏳ (Keep Stories)")
-                .setChecked(MidoConfig.antiExpireStories)
-                .setValue("الاحتفاظ باستوريات جهات الاتصال والقنوات دون مسحها بعد 24 ساعة"));
+        items.add(UItem.asCheck(27, "حفظ الاستوري المحذوفة 12 ساعة 🗑 (Anti-Delete Stories)")
+                .setChecked(MidoConfig.antiDeleteStories)
+                .setValue("إظهار الاستوريات التي يحذفها الآخرون مع علامة (محذوفة) وحذفها تلقائياً بعد 12 ساعة"));
 
         items.add(UItem.asCheck(8, "المستمع المتخفي بالمكالمات الصوتية 🎧 (Ghost Voice Call)")
                 .setChecked(MidoConfig.ghostCall)
@@ -273,9 +273,9 @@ public class MidoSettingsActivity extends BaseFragment {
                 ((TextCheckCell) view).setChecked(MidoConfig.stealthStories);
             }
         } else if (item.id == 27) {
-            MidoConfig.setAntiExpireStories(!MidoConfig.antiExpireStories);
+            MidoConfig.setAntiDeleteStories(!MidoConfig.antiDeleteStories);
             if (view instanceof TextCheckCell) {
-                ((TextCheckCell) view).setChecked(MidoConfig.antiExpireStories);
+                ((TextCheckCell) view).setChecked(MidoConfig.antiDeleteStories);
             }
         } else if (item.id == 8) {
             MidoConfig.setGhostCall(!MidoConfig.ghostCall);
