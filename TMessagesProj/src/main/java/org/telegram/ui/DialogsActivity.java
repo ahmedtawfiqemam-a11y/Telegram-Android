@@ -13397,6 +13397,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         io.add(R.drawable.msg_delete, LocaleController.isRTL ? "الحسابات المحذوفة (Delete Accounts)" : "Delete Accounts", () -> {
             presentFragment(new MidoDeletedAccountsActivity());
         });
+        io.add(R.drawable.msg_addfolder, LocaleController.isRTL ? "الذاكرة والمجلدات الموضوعية 📝" : "Memory & Topic Folders", () -> {
+            presentFragment(new MidoMemoryAndTopicsActivity());
+        });
         if (ApplicationLoader.applicationLoaderInstance != null) {
             ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
         }

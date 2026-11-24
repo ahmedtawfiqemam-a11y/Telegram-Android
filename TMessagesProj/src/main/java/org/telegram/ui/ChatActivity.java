@@ -143,6 +143,7 @@ import com.google.zxing.common.detector.MathUtils;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
+import org.telegram.messenger.MidoMemoryManager;
 import org.telegram.messenger.MidoVoiceChanger;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -1300,6 +1301,7 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_WELCOME_REVERT = 116;
     public final static int OPTION_SEND_MONEY = 117;
     public final static int OPTION_STOP_LIVE_LOCATION = 118;
+    public final static int OPTION_MIDO_SAVE_TO_TOPIC = 195;
 
     private final static int[] allowedNotificationsDuringChatListAnimations = new int[]{
             NotificationCenter.messagesRead,
@@ -1732,7 +1734,9 @@ public class ChatActivity extends BaseFragment implements
     private final static int chat_menu_topics_panel = 75;
     private final static int mido_follow_unjoined = 190;
     private final static int mido_voice_changer = 191;
+    private final static int mido_memory_card = 192;
     private ActionBarMenuSubItem midoFollowUnjoinedItem;
+    private ActionBarMenuSubItem midoMemoryCardItem;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3851,6 +3855,15 @@ public class ChatActivity extends BaseFragment implements
                                 themeDelegate
                         ).show();
                     });
+                } else if (id == mido_memory_card) {
+                    String cTitle = currentChat != null ? currentChat.title : (currentUser != null ? UserObject.getUserName(currentUser) : "");
+                    String cUser = currentChat != null ? ChatObject.getPublicUsername(currentChat) : (currentUser != null ? UserObject.getPublicUsername(currentUser) : "");
+                    MidoMemorySheetHelper.showChatMemorySheet(ChatActivity.this, dialog_id, cTitle, cUser, () -> {
+                        if (midoMemoryCardItem != null) {
+                            int memCnt = MidoMemoryManager.getCardItemCount(dialog_id);
+                            midoMemoryCardItem.setText("بطاقة الذاكرة والمواعيد 📝" + (memCnt > 0 ? (" (" + memCnt + ")") : ""));
+                        }
+                    });
                 } else if (id == tag_message) {
                     if (tagSelector == null) {
                         showTagSelector();
@@ -4511,6 +4524,14 @@ public class ChatActivity extends BaseFragment implements
             }
             if (!isTopic && !isReport() && (currentChat == null || !ChatObject.isChannel(currentChat) || currentChat.megagroup)) {
                 headerItem.lazilyAddSubItem(mido_voice_changer, R.drawable.msg_voice_unmuted, "مغيّر الصوت الفوري 🎙️");
+            }
+            if (!isTopic && !isReport() && dialog_id != 0) {
+                int memCnt = MidoMemoryManager.getCardItemCount(dialog_id);
+                midoMemoryCardItem = headerItem.lazilyAddSubItem(
+                        mido_memory_card,
+                        R.drawable.msg_edit,
+                        "بطاقة الذاكرة والمواعيد 📝" + (memCnt > 0 ? (" (" + memCnt + ")") : "")
+                );
             }
         } else if (chatMode == MODE_EDIT_BUSINESS_LINK) {
             headerItem = menu.addItem(chat_menu_options, otherIcon);
@@ -32033,6 +32054,12 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
 
+            if (selectedObject != null && selectedObject.getId() > 0 && !selectedObject.isSponsored()) {
+                items.add(LocaleController.isRTL ? "حفظ في مجلد موضوعي 📂" : "Save to Topic Folder 📂");
+                options.add(OPTION_MIDO_SAVE_TO_TOPIC);
+                icons.add(R.drawable.msg_addfolder);
+            }
+
             if (suggestEdit) {
                 items.clear();
                 options.clear();
@@ -34423,6 +34450,21 @@ public class ChatActivity extends BaseFragment implements
                 }
                 preserveDim = true;
                 createDeleteMessagesAlert(selectedObject, selectedObjectGroup, true);
+                break;
+            }
+            case OPTION_MIDO_SAVE_TO_TOPIC: {
+                if (selectedObject != null) {
+                    String cTitle = currentChat != null ? currentChat.title : (currentUser != null ? UserObject.getUserName(currentUser) : "");
+                    String cUser = currentChat != null ? ChatObject.getPublicUsername(currentChat) : (currentUser != null ? UserObject.getPublicUsername(currentUser) : "");
+                    long cAccessHash = currentChat != null ? currentChat.access_hash : (currentUser != null ? currentUser.access_hash : 0L);
+                    CharSequence txt = selectedObject.messageText != null ? selectedObject.messageText : selectedObject.caption;
+                    String preview = !TextUtils.isEmpty(txt)
+                            ? txt.toString()
+                            : (selectedObject.isPhoto() ? "[صورة]" : selectedObject.isVideo() ? "[فيديو]" : selectedObject.isVoice() ? "[رسالة صوتية]" : "[رسالة]");
+                    MidoMemorySheetHelper.showSaveToTopicFolderSheet(
+                            ChatActivity.this, dialog_id, cAccessHash, selectedObject.getId(), cTitle, cUser, "", preview
+                    );
+                }
                 break;
             }
             case OPTION_FORWARD: {
