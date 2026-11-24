@@ -76,6 +76,9 @@
 -keep class io.nano.tex.** {*;}
 
 -keep class org.telegram.tgnet.** { *; }
+-keep class org.telegram.messenger.MidoConfig { *; }
+-keep class org.telegram.ui.MidoSettingsActivity { *; }
+-keep class org.telegram.ui.MidoForceSubEditorActivity { *; }
 
 # JLatexMath: macro/atom classes are loaded reflectively by Class.forName
 -keep class org.scilab.forge.jlatexmath.** { *; }
