@@ -58,7 +58,7 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setValue("إلزام أي شخص يراسلك خاص بالاشتراك في قناتك أو مجموعتك أولاً"));
 
         items.add(UItem.asButton(31, "🔗 قناة/جروب الاشتراك: " + MidoConfig.forceSubChannel, "اضغط لتعديل رابط القناة أو المجموعة التي تريد إجبارهم عليها"));
-        items.add(UItem.asButton(32, "📝 تعديل رسالة الاشتراك الإجباري", "تخصيص الرسالة مع دعم #FirstName و #UserName و #ChannelLink"));
+        items.add(UItem.asButton(32, "📝 تعديل رسالة الاشتراك الإجباري", "يدعم الإيموجي المميز (Premium) والغامق والمونو والاقتباس والمتغيرات"));
         items.add(UItem.asCheck(33, "استثناء جهات الاتصال المحفوظة 👥 (Exceptions)")
                 .setChecked(MidoConfig.forceSubExcludeContacts)
                 .setValue("عدم طلب الاشتراك من أصدقائك وجهات الاتصال المسجلة في هاتفك"));
@@ -183,25 +183,7 @@ public class MidoSettingsActivity extends BaseFragment {
             builder.setNegativeButton("إلغاء", null);
             showDialog(builder.create());
         } else if (item.id == 32) {
-            if (getParentActivity() == null) return;
-            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle("رسالة الاشتراك الإجباري");
-            builder.setMessage("يمكنك استخدام:
-#FirstName = الاسم الأول للمرسل
-#UserName = يوزر المرسل
-#ChannelLink = رابط القناة أو الجروب");
-            final EditText editText = new EditText(getParentActivity());
-            editText.setText(MidoConfig.forceSubMessage);
-            editText.setMinLines(3);
-            builder.setView(editText);
-            builder.setPositiveButton("حفظ", (d, w) -> {
-                String val = editText.getText().toString().trim();
-                if (!TextUtils.isEmpty(val)) {
-                    MidoConfig.setForceSubMessage(val);
-                }
-            });
-            builder.setNegativeButton("إلغاء", null);
-            showDialog(builder.create());
+            presentFragment(new MidoForceSubEditorActivity());
         } else if (item.id == 33) {
             MidoConfig.setForceSubExcludeContacts(!MidoConfig.forceSubExcludeContacts);
             if (view instanceof TextCheckCell) {

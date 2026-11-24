@@ -25843,10 +25843,12 @@ public class MessagesController extends BaseController implements NotificationCe
         String userName = !android.text.TextUtils.isEmpty(user.username) ? "@" + user.username : firstName;
         String channel = MidoConfig.forceSubChannel != null ? MidoConfig.forceSubChannel : "";
 
-        String text = MidoConfig.forceSubMessage != null ? MidoConfig.forceSubMessage : "";
-        text = text.replace("#FirstName", firstName);
-        text = text.replace("#UserName", userName);
-        text = text.replace("#ChannelLink", channel);
+        StringBuilder sb = new StringBuilder(MidoConfig.forceSubMessage != null ? MidoConfig.forceSubMessage : "");
+        ArrayList<TLRPC.MessageEntity> entities = MidoConfig.getForceSubEntitiesCopy();
+        replaceForceSubPlaceholder(sb, entities, "#FirstName", firstName);
+        replaceForceSubPlaceholder(sb, entities, "#UserName", userName);
+        replaceForceSubPlaceholder(sb, entities, "#ChannelLink", channel);
+        String text = sb.toString();
         if (!text.contains(channel) && !android.text.TextUtils.isEmpty(channel)) {
             text += "
 
@@ -25854,9 +25856,48 @@ public class MessagesController extends BaseController implements NotificationCe
         }
 
         final String finalText = text;
+        final ArrayList<TLRPC.MessageEntity> finalEntities = entities;
         AndroidUtilities.runOnUIThread(() -> {
-            getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(finalText, dialogId));
+            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(finalText, dialogId);
+            if (finalEntities != null && !finalEntities.isEmpty()) {
+                params.entities = finalEntities;
+            }
+            getSendMessagesHelper().sendMessage(params);
         }, 800);
+    }
+
+    private static void replaceForceSubPlaceholder(StringBuilder sb, ArrayList<TLRPC.MessageEntity> entities, String placeholder, String replacement) {
+        if (replacement == null) {
+            replacement = "";
+        }
+        int idx = 0;
+        while ((idx = sb.indexOf(placeholder, idx)) != -1) {
+            int pLen = placeholder.length();
+            int rLen = replacement.length();
+            int delta = rLen - pLen;
+            sb.replace(idx, idx + pLen, replacement);
+            if (entities != null && delta != 0) {
+                for (int i = 0; i < entities.size(); i++) {
+                    TLRPC.MessageEntity e = entities.get(i);
+                    int eStart = e.offset;
+                    int eEnd = e.offset + e.length;
+                    if (eStart >= idx + pLen) {
+                        e.offset += delta;
+                    } else if (eStart <= idx && eEnd >= idx + pLen) {
+                        e.length = Math.max(0, e.length + delta);
+                    } else if (eStart < idx + pLen && eEnd > idx) {
+                        if (eStart < idx) {
+                            e.length = Math.max(0, Math.min(eEnd, idx + rLen) - eStart);
+                        } else {
+                            int after = Math.max(0, eEnd - (idx + pLen));
+                            e.offset = idx + rLen;
+                            e.length = after;
+                        }
+                    }
+                }
+            }
+            idx += rLen;
+        }
     }
 
     public void deleteForceSubMessage(long dialogId) {

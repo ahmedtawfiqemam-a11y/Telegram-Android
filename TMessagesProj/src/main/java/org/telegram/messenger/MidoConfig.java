@@ -1,7 +1,10 @@
 package org.telegram.messenger;
 
 import android.content.SharedPreferences;
+import android.util.Base64;
+import org.telegram.tgnet.SerializedData;
 import org.telegram.tgnet.TLRPC;
+import java.util.ArrayList;
 
 public class MidoConfig {
     public static boolean antiDelete = true;
@@ -27,6 +30,7 @@ public class MidoConfig {
 
 يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
 #ChannelLink";
+    public static ArrayList<TLRPC.MessageEntity> forceSubEntities = new ArrayList<>();
     public static boolean forceSubExcludeContacts = true;
     public static boolean profileMusicBar = true;
     public static boolean devBadgeEnabled = true;
@@ -62,6 +66,7 @@ public class MidoConfig {
 
 يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
 #ChannelLink");
+        forceSubEntities = deserializeEntities(preferences.getString("forceSubEntities", ""));
         forceSubExcludeContacts = preferences.getBoolean("forceSubExcludeContacts", true);
         profileMusicBar = preferences.getBoolean("profileMusicBar", true);
         devBadgeEnabled = preferences.getBoolean("devBadgeEnabled", true);
@@ -229,11 +234,71 @@ public class MidoConfig {
     }
 
     public static void setForceSubMessage(String message) {
-        forceSubMessage = message;
+        setForceSubMessage(message, null);
+    }
+
+    public static void setForceSubMessage(String message, ArrayList<TLRPC.MessageEntity> entities) {
+        forceSubMessage = message != null ? message : "";
+        forceSubEntities = entities != null ? entities : new ArrayList<>();
         if (ApplicationLoader.applicationContext != null) {
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
-            preferences.edit().putString("forceSubMessage", message).apply();
+            preferences.edit()
+                    .putString("forceSubMessage", forceSubMessage)
+                    .putString("forceSubEntities", serializeEntities(forceSubEntities))
+                    .apply();
         }
+    }
+
+    public static ArrayList<TLRPC.MessageEntity> getForceSubEntitiesCopy() {
+        return deserializeEntities(serializeEntities(forceSubEntities));
+    }
+
+    private static String serializeEntities(ArrayList<TLRPC.MessageEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return "";
+        }
+        SerializedData data = null;
+        try {
+            data = new SerializedData();
+            data.writeInt32(entities.size());
+            for (int i = 0; i < entities.size(); i++) {
+                entities.get(i).serializeToStream(data);
+            }
+            return Base64.encodeToString(data.toByteArray(), Base64.NO_WRAP);
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return "";
+        } finally {
+            if (data != null) {
+                data.cleanup();
+            }
+        }
+    }
+
+    private static ArrayList<TLRPC.MessageEntity> deserializeEntities(String encoded) {
+        ArrayList<TLRPC.MessageEntity> list = new ArrayList<>();
+        if (encoded == null || encoded.isEmpty()) {
+            return list;
+        }
+        SerializedData data = null;
+        try {
+            byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
+            data = new SerializedData(bytes);
+            int count = data.readInt32(true);
+            for (int i = 0; i < count; i++) {
+                TLRPC.MessageEntity entity = TLRPC.MessageEntity.TLdeserialize(data, data.readInt32(true), true);
+                if (entity != null) {
+                    list.add(entity);
+                }
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        } finally {
+            if (data != null) {
+                data.cleanup();
+            }
+        }
+        return list;
     }
 
     public static void setForceSubExcludeContacts(boolean exclude) {
