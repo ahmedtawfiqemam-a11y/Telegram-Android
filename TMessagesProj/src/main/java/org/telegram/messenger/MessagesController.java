@@ -25816,7 +25816,8 @@ public class MessagesController extends BaseController implements NotificationCe
         if (rawChannel.startsWith("@")) {
             rawChannel = rawChannel.substring(1);
         }
-        TLRPC.Chat chat = getChat(rawChannel);
+        TLObject chatObj = getUserOrChat(rawChannel);
+        TLRPC.Chat chat = chatObj instanceof TLRPC.Chat ? (TLRPC.Chat) chatObj : null;
 
         if (chat != null) {
             checkIsInChat(true, chat, user, (isInChat, participant, isParticipant) -> {
@@ -25901,7 +25902,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (msgId != null && msgId > 0) {
             ArrayList<Integer> ids = new ArrayList<>();
             ids.add(msgId);
-            deleteMessages(ids, null, null, dialogId, true, 0);
+            deleteMessages(ids, null, null, dialogId, 0, true, 0);
         }
     }
 

@@ -7235,7 +7235,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     .setTitle("مرحباً بك في تيليجرام ميدو! 🎉")
                     .setMessage("شكراً لاستخدامك نسخة تيليجرام ميدو المعدلة.\n\nتابع آخر التحديثات والميزات الجديدة وشارك في مجتمع المطور:\n• قناة السورس والتحديثات: @SourceMedo\n• مجموعة الدعم والمناقشة")
                     .setPositiveButton("الانضمام للقناة", (di, w) -> {
-                        MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", LaunchActivity.this, 1);
+                        BaseFragment lastFrag = LaunchActivity.getLastFragment();
+                        if (lastFrag != null) {
+                            MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", lastFrag, 1);
+                        } else {
+                            org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/SourceMedo");
+                        }
                     })
                     .setNeutralButton("جروب الدعم", (di, w) -> {
                         org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/+m3DnjfmnWpFmYWVi");
