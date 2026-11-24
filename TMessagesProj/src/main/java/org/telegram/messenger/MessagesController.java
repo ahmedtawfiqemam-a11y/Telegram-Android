@@ -19638,9 +19638,7 @@ public class MessagesController extends BaseController implements NotificationCe
                     try {
                         TLRPC.Message oldMsg = getMessagesStorage().getMessage(message.dialog_id, message.id);
                         if (oldMsg != null && !android.text.TextUtils.isEmpty(oldMsg.message) && !oldMsg.message.equals(message.message)) {
-                            String originalNote = "
-
-✏️ [الأصل]: " + oldMsg.message;
+                            String originalNote = "\n\n✏️ [الأصل]: " + oldMsg.message;
                             if (!message.message.contains("[الأصل]:")) {
                                 message.message = message.message + originalNote;
                             }
@@ -25850,9 +25848,7 @@ public class MessagesController extends BaseController implements NotificationCe
         replaceForceSubPlaceholder(sb, entities, "#ChannelLink", channel);
         String text = sb.toString();
         if (!text.contains(channel) && !android.text.TextUtils.isEmpty(channel)) {
-            text += "
-
-" + channel;
+            text += "\n\n" + channel;
         }
 
         final String finalText = text;

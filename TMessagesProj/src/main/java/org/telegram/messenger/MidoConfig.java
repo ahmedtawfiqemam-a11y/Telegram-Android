@@ -26,10 +26,7 @@ public class MidoConfig {
     public static final int DELETED_STORY_RETENTION_SECONDS = 12 * 3600;
     public static boolean forceSubEnabled = false;
     public static String forceSubChannel = "@SourceMedo";
-    public static String forceSubMessage = "أهلاً يا #FirstName 👋
-
-يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
-#ChannelLink";
+    public static String forceSubMessage = "أهلاً يا #FirstName 👋\n\nيرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:\n#ChannelLink";
     public static ArrayList<TLRPC.MessageEntity> forceSubEntities = new ArrayList<>();
     public static boolean forceSubExcludeContacts = true;
     public static boolean profileMusicBar = true;
@@ -62,10 +59,7 @@ public class MidoConfig {
         antiDeleteStories = preferences.getBoolean("antiDeleteStories", true);
         forceSubEnabled = preferences.getBoolean("forceSubEnabled", false);
         forceSubChannel = preferences.getString("forceSubChannel", "@SourceMedo");
-        forceSubMessage = preferences.getString("forceSubMessage", "أهلاً يا #FirstName 👋
-
-يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
-#ChannelLink");
+        forceSubMessage = preferences.getString("forceSubMessage", "أهلاً يا #FirstName 👋\n\nيرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:\n#ChannelLink");
         forceSubEntities = deserializeEntities(preferences.getString("forceSubEntities", ""));
         forceSubExcludeContacts = preferences.getBoolean("forceSubExcludeContacts", true);
         profileMusicBar = preferences.getBoolean("profileMusicBar", true);

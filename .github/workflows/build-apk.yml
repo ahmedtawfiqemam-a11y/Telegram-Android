@@ -61,18 +61,34 @@ jobs:
         run: |
           chmod +x ./gradlew
           case "$VARIANT" in
-            afatStandalone) TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone" ;;
-            afatRelease)    TASK=":TMessagesProj_App:assembleAfatRelease" ;;
-            afatDebug)      TASK=":TMessagesProj_App:assembleAfatDebug" ;;
-            *)              TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone" ;;
+            afatStandalone)
+              JAVAC_TASK=":TMessagesProj_AppStandalone:compileAfatStandaloneJavaWithJavac"
+              TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone"
+              ;;
+            afatRelease)
+              JAVAC_TASK=":TMessagesProj_App:compileAfatReleaseJavaWithJavac"
+              TASK=":TMessagesProj_App:assembleAfatRelease"
+              ;;
+            afatDebug)
+              JAVAC_TASK=":TMessagesProj_App:compileAfatDebugJavaWithJavac"
+              TASK=":TMessagesProj_App:assembleAfatDebug"
+              ;;
+            *)
+              JAVAC_TASK=":TMessagesProj_AppStandalone:compileAfatStandaloneJavaWithJavac"
+              TASK=":TMessagesProj_AppStandalone:assembleAfatStandalone"
+              ;;
           esac
           set +e
-          ./gradlew "${TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 > build.log 2>&1
+          ./gradlew "${JAVAC_TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 > build.log 2>&1
           EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 0 ]; then
+            ./gradlew "${TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 >> build.log 2>&1
+            EXIT_CODE=$?
+          fi
           set -e
           tail -n 120 build.log
           if [ $EXIT_CODE -ne 0 ]; then
-            python3 -c 'lines=open("build.log",errors="ignore").read().splitlines(); keys=("FAILURE:","error:","Exception","Execution failed","Caused by:","What went wrong"); err=[l for l in lines if any(k in l for k in keys)]; [print("::error::"+l[:300]) for l in (err[:12] if err else lines[-15:])]'
+            python3 -c 'lines=open("build.log",errors="ignore").read().splitlines(); keys=("FAILURE:",": error:","Execution failed","Caused by:","What went wrong"); err=[l for l in lines if any(k in l for k in keys)]; [print("::error::"+l[:300]) for l in (err[:15] if err else lines[-15:])]'
             exit $EXIT_CODE
           fi
 
