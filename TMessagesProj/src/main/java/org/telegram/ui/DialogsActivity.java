@@ -13400,6 +13400,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         io.add(R.drawable.msg_addfolder, LocaleController.isRTL ? "الذاكرة والمجلدات الموضوعية 📝" : "Memory & Topic Folders", () -> {
             presentFragment(new MidoMemoryAndTopicsActivity());
         });
+        io.add(R.drawable.msg_leave, LocaleController.isRTL ? "القنوات المهجورة (Dead Channels)" : "Dead Channels Cleaner", () -> {
+            presentFragment(new MidoDeadChannelsActivity());
+        });
         if (ApplicationLoader.applicationLoaderInstance != null) {
             ApplicationLoader.applicationLoaderInstance.addItemOptions(io);
         }
