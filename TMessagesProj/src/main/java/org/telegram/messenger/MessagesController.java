@@ -17391,6 +17391,7 @@ public class MessagesController extends BaseController implements NotificationCe
         } else {
             dialog.pinnedNum = 0;
         }
+        MidoLocalPins.setDialogPinned(currentAccount, dialogId, pin, dialog.pinnedNum);
         sortDialogs(null);
         if (!pin && !dialogs.isEmpty() && dialogs.get(dialogs.size() - 1) == dialog && !dialogsEndReached.get(folderId)) {
             dialogs.remove(dialogs.size() - 1);
@@ -22502,6 +22503,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (chatsDict == null && ApplicationLoader.mainInterfacePaused) {
             return;
         }
+        MidoLocalPins.applyLocalPinsToDialogs(currentAccount, dialogs_dict);
         dialogsServerOnly.clear();
         dialogsCanAddUsers.clear();
         dialogsMyGroups.clear();

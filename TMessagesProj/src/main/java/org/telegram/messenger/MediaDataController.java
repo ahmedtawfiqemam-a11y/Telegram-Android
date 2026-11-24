@@ -979,10 +979,11 @@ public class MediaDataController extends BaseController {
         int maxCount;
         if (type == TYPE_FAVE) {
             if (remove) {
+                MidoLocalPins.removeFavedSticker(currentAccount, document.id);
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_STICKER, document, StickerSetBulletinLayout.TYPE_REMOVED_FROM_FAVORITES);
             } else {
-                boolean replace = recentStickers[type].size() > getMessagesController().maxFaveStickersCount;
-                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_STICKER, document, replace ? StickerSetBulletinLayout.TYPE_REPLACED_TO_FAVORITES : StickerSetBulletinLayout.TYPE_ADDED_TO_FAVORITES);
+                MidoLocalPins.saveFavedSticker(currentAccount, document);
+                NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_STICKER, document, StickerSetBulletinLayout.TYPE_ADDED_TO_FAVORITES);
             }
             TLRPC.TL_messages_faveSticker req = new TLRPC.TL_messages_faveSticker();
             req.id = new TLRPC.TL_inputDocument();
@@ -1000,7 +1001,7 @@ public class MediaDataController extends BaseController {
                     AndroidUtilities.runOnUIThread(() -> getMediaDataController().loadRecents(MediaDataController.TYPE_FAVE, false, false, true));
                 }
             });
-            maxCount = getMessagesController().maxFaveStickersCount;
+            maxCount = 10000;
         } else {
             if (type == TYPE_IMAGE && remove) {
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.showBulletin, Bulletin.TYPE_STICKER, document, StickerSetBulletinLayout.TYPE_REMOVED_FROM_RECENT);
@@ -2052,7 +2053,7 @@ public class MediaDataController extends BaseController {
                     } else if (type == TYPE_FAVE) {
                         if (response instanceof TLRPC.TL_messages_favedStickers) {
                             TLRPC.TL_messages_favedStickers res = (TLRPC.TL_messages_favedStickers) response;
-                            arrayList = res.stickers;
+                            arrayList = MidoLocalPins.mergeFavedStickers(currentAccount, res.stickers);
                         }
                     } else {
                         if (response instanceof TLRPC.TL_messages_recentStickers) {
@@ -2092,7 +2093,7 @@ public class MediaDataController extends BaseController {
                         if (type == TYPE_GREETINGS || type == TYPE_PREMIUM_STICKERS) {
                             maxCount = 200;
                         } else if (type == TYPE_FAVE) {
-                            maxCount = getMessagesController().maxFaveStickersCount;
+                            maxCount = 10000;
                         } else {
                             maxCount = getMessagesController().maxRecentStickersCount;
                         }
