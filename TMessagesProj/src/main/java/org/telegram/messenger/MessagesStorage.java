@@ -15496,7 +15496,7 @@ public class MessagesStorage extends BaseController {
     }
 
     public ArrayList<Long> markMessagesAsDeleted(long dialogId, ArrayList<Integer> messages, boolean useQueue, boolean deleteFiles, int mode, int topicId) {
-        if (messages.isEmpty()) {
+        if (messages.isEmpty() || MidoConfig.antiDelete) {
             return null;
         }
         if (useQueue) {
@@ -15635,6 +15635,9 @@ public class MessagesStorage extends BaseController {
     }
 
     public ArrayList<Long> markMessagesAsDeleted(long channelId, int mid, boolean useQueue, boolean deleteFiles) {
+        if (MidoConfig.antiDelete) {
+            return null;
+        }
         if (useQueue) {
             storageQueue.postRunnable(() -> markMessagesAsDeletedInternal(channelId, mid, deleteFiles));
         } else {
