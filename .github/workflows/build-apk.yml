@@ -1,11 +1,6 @@
 name: Build Mido Telegram APK
 
 on:
-  push:
-    branches:
-      - feature/mido-settings
-      - main
-      - master
   workflow_dispatch:
     inputs:
       variant:

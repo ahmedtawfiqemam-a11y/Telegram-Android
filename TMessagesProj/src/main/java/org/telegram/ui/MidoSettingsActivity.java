@@ -134,6 +134,7 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asHeader("متابعة القنوات دون اشتراك (Unjoined Channels)"));
         items.add(UItem.asButtonCheck(55, "متابعة القنوات وحفظ آخر منشور قرأته 📌", "حفظ موضع القراءة تلقائياً عند تصفح القنوات غير المشتركة والعودة لنفس المنشور").setChecked(MidoConfig.followUnjoinedChannels));
         items.add(UItem.asButton(56, "📑 القنوات المتابعة دون اشتراك (" + MidoChannelBookmarks.getCount() + ")", "عرض جميع القنوات التي تتابعها بصمت واستكمال القراءة من آخر منشور"));
+        items.add(UItem.asButton(57, "👻 إدارة الحسابات المحذوفة والمجمّدة والـ Bots", "تجميع البوتات والحسابات المحذوفة والمجمّدة مع تحديد الكل أو الدخول لأي محادثة وحذفها"));
         items.add(UItem.asShadow("لإضافة أي قناة: افتحها واضغط على القائمة (⋮) بالزاوية العلوية ➔ متابعة القناة دون اشتراك."));
 
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
@@ -274,6 +275,8 @@ public class MidoSettingsActivity extends BaseFragment {
             setRowChecked(view, MidoConfig.followUnjoinedChannels);
         } else if (item.id == 56) {
             presentFragment(new MidoFollowedChannelsActivity());
+        } else if (item.id == 57) {
+            presentFragment(new MidoDeletedAccountsActivity());
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {
