@@ -41,6 +41,8 @@ public class MidoConfig {
     public static boolean voiceChangerCalls = true;
     public static boolean voiceChangerMessages = true;
     public static boolean followUnjoinedChannels = true;
+    public static boolean freeAppIcons = true;
+    public static String customAppIconPath = "";
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -81,6 +83,8 @@ public class MidoConfig {
         voiceChangerCalls = preferences.getBoolean("voiceChangerCalls", true);
         voiceChangerMessages = preferences.getBoolean("voiceChangerMessages", true);
         followUnjoinedChannels = preferences.getBoolean("followUnjoinedChannels", true);
+        freeAppIcons = preferences.getBoolean("freeAppIcons", true);
+        customAppIconPath = preferences.getString("customAppIconPath", "");
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -162,6 +166,20 @@ public class MidoConfig {
     public static void setFollowUnjoinedChannels(boolean enabled) {
         followUnjoinedChannels = enabled;
         savePreference("followUnjoinedChannels", enabled);
+    }
+
+    public static void setFreeAppIcons(boolean enabled) {
+        freeAppIcons = enabled;
+        savePreference("freeAppIcons", enabled);
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoCustomAppIconChanged);
+    }
+
+    public static void setCustomAppIconPath(String path) {
+        customAppIconPath = path != null ? path : "";
+        if (ApplicationLoader.applicationContext != null) {
+            ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0)
+                    .edit().putString("customAppIconPath", customAppIconPath).apply();
+        }
     }
 
     public static boolean isDevChat(TLRPC.Chat chat) {

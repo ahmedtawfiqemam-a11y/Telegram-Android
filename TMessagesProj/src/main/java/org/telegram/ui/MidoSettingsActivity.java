@@ -1,6 +1,7 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.content.Intent;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.TypedValue;
@@ -12,6 +13,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
+import org.telegram.messenger.MidoCustomAppIcon;
 import org.telegram.messenger.MidoVoiceChanger;
 import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
@@ -137,6 +139,14 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asButton(57, "👻 إدارة الحسابات المحذوفة والمجمّدة والـ Bots", "تجميع البوتات والحسابات المحذوفة والمجمّدة مع تحديد الكل أو الدخول لأي محادثة وحذفها"));
         items.add(UItem.asButton(60, "📝 بطاقات الذاكرة ومجلدات المواضيع 📂", "عرض ملاحظاتك ومواعيدك مع الأشخاص وتصفح الرسائل المجمّعة من مختلف القنوات والمجموعات"));
         items.add(UItem.asShadow("لإضافة أي قناة: افتحها واضغط على القائمة (⋮) بالزاوية العلوية ➔ متابعة القناة دون اشتراك."));
+
+        items.add(UItem.asHeader("أيقونة وصورة التطبيق مجاناً (App Icons)"));
+        items.add(UItem.asButtonCheck(65, "فتح جميع أيقونات التطبيق مجاناً ⭐", "تفعيل كافة أيقونات Telegram Premium في إعدادات المظهر دون الحاجة لاشتراك مدفوع").setChecked(MidoConfig.freeAppIcons));
+        items.add(UItem.asButton(66, "🖼️ وضع صورة للتطبيق من جهازك", MidoCustomAppIcon.hasCustomIcon() ? "مُفعّلة حالياً — اضغط لتغيير الصورة أو تثبيتها على الشاشة الرئيسية" : "اختر أي صورة من المعرض لوضعها كأيقونة للتطبيق على الشاشة الرئيسية"));
+        if (MidoCustomAppIcon.hasCustomIcon()) {
+            items.add(UItem.asButton(67, "🗑 إزالة الصورة المخصصة للتطبيق", "حذف الصورة المخصصة والعودة لأيقونة التطبيق الافتراضية"));
+        }
+        items.add(UItem.asShadow("يمكنك أيضاً اختيار أيقونات التطبيق المدفوعة أو صورتك الخاصة مباشرة من: الإعدادات ➔ إعدادات المحادثات ➔ أيقونة التطبيق."));
 
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
@@ -280,11 +290,32 @@ public class MidoSettingsActivity extends BaseFragment {
             presentFragment(new MidoDeletedAccountsActivity());
         } else if (item.id == 60) {
             presentFragment(new MidoMemoryAndTopicsActivity());
+        } else if (item.id == 65) {
+            MidoConfig.setFreeAppIcons(!MidoConfig.freeAppIcons);
+            setRowChecked(view, MidoConfig.freeAppIcons);
+        } else if (item.id == 66) {
+            MidoCustomAppIcon.showManageCustomIconDialog(this);
+        } else if (item.id == 67) {
+            MidoCustomAppIcon.removeCustomIcon(this);
+            if (listView != null && listView.adapter != null) {
+                listView.adapter.update(true);
+            }
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {
             Browser.openUrl(getParentActivity(), "https://t.me/+m3DnjfmnWpFmYWVi");
         }
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        if (MidoCustomAppIcon.handleActivityResult(this, requestCode, resultCode, data)) {
+            if (listView != null && listView.adapter != null) {
+                listView.adapter.update(true);
+            }
+            return;
+        }
+        super.onActivityResultFragment(requestCode, resultCode, data);
     }
 
     private interface OnTextSavedListener {

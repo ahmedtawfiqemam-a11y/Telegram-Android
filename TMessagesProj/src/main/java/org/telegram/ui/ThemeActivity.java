@@ -3042,4 +3042,12 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         keys.add(Theme.key_actionBarDefaultIcon);
         keys.add(Theme.key_actionBarDefault);
     }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
+        if (org.telegram.messenger.MidoCustomAppIcon.handleActivityResult(this, requestCode, resultCode, data)) {
+            return;
+        }
+        super.onActivityResultFragment(requestCode, resultCode, data);
+    }
 }

@@ -31,6 +31,8 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
+import org.telegram.messenger.MidoCustomAppIcon;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -56,10 +58,12 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
     private List<LauncherIconController.LauncherIcon> availableIcons = new ArrayList<>();
     private LinearLayoutManager linearLayoutManager;
     private int currentAccount;
+    private BaseFragment parentFragment;
 
     public AppIconsSelectorCell(Context context, BaseFragment fragment, int currentAccount) {
         super(context);
         this.currentAccount = currentAccount;
+        this.parentFragment = fragment;
         setPadding(0, AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12));
 
         setFocusable(false);
@@ -78,15 +82,21 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
             @Override
             public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
                 IconHolderView holderView = (IconHolderView) holder.itemView;
-                LauncherIconController.LauncherIcon icon = availableIcons.get(position);
-                holderView.bind(icon);
-                ThemeBind.selectorBackground(holderView.iconView, Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(ICONS_ROUND_RADIUS), Color.TRANSPARENT, Theme.getColor(Theme.key_listSelector), Color.BLACK), null, ThemeBind.of(Theme.key_listSelector));
-                holderView.iconView.setForeground(icon.foreground);
+                if (position < availableIcons.size()) {
+                    LauncherIconController.LauncherIcon icon = availableIcons.get(position);
+                    holderView.bind(icon);
+                    ThemeBind.selectorBackground(holderView.iconView, Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(ICONS_ROUND_RADIUS), Color.TRANSPARENT, Theme.getColor(Theme.key_listSelector), Color.BLACK), null, ThemeBind.of(Theme.key_listSelector));
+                    holderView.iconView.setForeground(icon.foreground);
+                } else {
+                    holderView.bindCustom();
+                    ThemeBind.selectorBackground(holderView.iconView, Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(ICONS_ROUND_RADIUS), Color.TRANSPARENT, Theme.getColor(Theme.key_listSelector), Color.BLACK), null, ThemeBind.of(Theme.key_listSelector));
+                    holderView.iconView.setForeground(0);
+                }
             }
 
             @Override
             public int getItemCount() {
-                return availableIcons.size();
+                return availableIcons.size() + 1;
             }
         });
         addItemDecoration(new ItemDecoration() {
@@ -109,9 +119,13 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
             }
         });
         setOnItemClickListener((view, position) -> {
+            if (position >= availableIcons.size()) {
+                MidoCustomAppIcon.showManageCustomIconDialog(parentFragment);
+                return;
+            }
             IconHolderView holderView = (IconHolderView) view;
             LauncherIconController.LauncherIcon icon = availableIcons.get(position);
-            if (icon.premium && !UserConfig.hasPremiumOnAccounts()) {
+            if (icon.premium && !UserConfig.hasPremiumOnAccounts() && !MidoConfig.freeAppIcons) {
                 fragment.showDialog(new PremiumFeatureBottomSheet(fragment, PremiumPreviewFragment.PREMIUM_FEATURE_APPLICATION_ICONS, true));
                 return;
             }
@@ -153,7 +167,7 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
     private void updateIconsVisibility() {
         availableIcons.clear();
         availableIcons.addAll(Arrays.asList(LauncherIconController.LauncherIcon.values()));
-        if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked()) {
+        if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && !MidoConfig.freeAppIcons) {
             for (int i = 0; i < availableIcons.size(); i++) {
                 if (availableIcons.get(i).premium) {
                     availableIcons.remove(i);
@@ -190,6 +204,7 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         super.onAttachedToWindow();
 
         NotificationCenter.getGlobalInstance().addWeakObserver(this, NotificationCenter.premiumStatusChangedGlobal);
+        NotificationCenter.getGlobalInstance().addWeakObserver(this, NotificationCenter.midoCustomAppIconChanged);
     }
 
     @Override
@@ -197,11 +212,12 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         super.onDetachedFromWindow();
 
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.premiumStatusChangedGlobal);
+        NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.midoCustomAppIconChanged);
     }
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
-        if (id == NotificationCenter.premiumStatusChangedGlobal) {
+        if (id == NotificationCenter.premiumStatusChangedGlobal || id == NotificationCenter.midoCustomAppIconChanged) {
             updateIconsVisibility();
         }
     }
@@ -288,10 +304,13 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         }
 
         private void bind(LauncherIconController.LauncherIcon icon) {
+            iconView.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
+            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iconView.clearColorFilter();
             iconView.setImageResource(icon.background);
 
             MarginLayoutParams params = (MarginLayoutParams) titleView.getLayoutParams();
-            if (icon.premium && !UserConfig.hasPremiumOnAccounts()) {
+            if (icon.premium && !UserConfig.hasPremiumOnAccounts() && !MidoConfig.freeAppIcons) {
                 SpannableString str = new SpannableString("d " + LocaleController.getString(icon.title));
                 ColoredImageSpan span = new ColoredImageSpan(R.drawable.msg_mini_premiumlock);
                 span.setTopOffset(1);
@@ -306,6 +325,27 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
             }
             setSelected(LauncherIconController.isEnabled(icon), false);
         }
+
+        private void bindCustom() {
+            MarginLayoutParams params = (MarginLayoutParams) titleView.getLayoutParams();
+            params.rightMargin = 0;
+            android.graphics.Bitmap bmp = MidoCustomAppIcon.getCustomIconBitmap();
+            if (bmp != null) {
+                iconView.setPadding(AndroidUtilities.dp(3), AndroidUtilities.dp(3), AndroidUtilities.dp(3), AndroidUtilities.dp(3));
+                iconView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                iconView.clearColorFilter();
+                iconView.setImageBitmap(bmp);
+                titleView.setText(LocaleController.isRTL ? "صورتي 🖼️" : "Custom 🖼️");
+                setSelected(true, false);
+            } else {
+                iconView.setPadding(AndroidUtilities.dp(15), AndroidUtilities.dp(15), AndroidUtilities.dp(15), AndroidUtilities.dp(15));
+                iconView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                iconView.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
+                iconView.setImageResource(R.drawable.msg_addphoto);
+                titleView.setText(LocaleController.isRTL ? "من جهازك +" : "Custom +");
+                setSelected(false, false);
+            }
+        }
     }
 
     public static class AdaptiveIconImageView extends ImageView {
@@ -319,7 +359,7 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         }
 
         public void setForeground(int res) {
-            foreground = ContextCompat.getDrawable(getContext(), res);
+            foreground = res != 0 ? ContextCompat.getDrawable(getContext(), res) : null;
             invalidate();
         }
 
