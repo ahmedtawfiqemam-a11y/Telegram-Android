@@ -2170,7 +2170,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				FileLog.d("initital source = " + ssrc);
 			}
 			final TL_phone.joinGroupCall req = new TL_phone.joinGroupCall();
-			req.muted = micMute;
+			req.muted = micMute || MidoConfig.ghostCall;
 			req.video_stopped = videoState[CAPTURE_DEVICE_CAMERA] != Instance.VIDEO_STATE_ACTIVE;
 			req.call = groupCall.getInputGroupCall();
 			req.params = new TLRPC.TL_dataJSON();
@@ -2467,7 +2467,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			}
 			final Runnable join = () -> {
 				final TL_phone.joinGroupCall req = new TL_phone.joinGroupCall();
-				req.muted = micMute;
+				req.muted = micMute || MidoConfig.ghostCall;
 				req.video_stopped = videoState[CAPTURE_DEVICE_CAMERA] != Instance.VIDEO_STATE_ACTIVE;
 				if (conference != null) {
 					req.call = conference.inputGroupCall;
@@ -3097,7 +3097,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				boolean hasOther = false;
 				for (int a = 0; a < uids.length; a++) {
 					if (uids[a] == 0) {
-						if (chat != null && lastTypingTimeSend < SystemClock.uptimeMillis() - 5000 && levels[a] > 0.1f && voice[a]) {
+						if (!MidoConfig.ghostCall && chat != null && lastTypingTimeSend < SystemClock.uptimeMillis() - 5000 && levels[a] > 0.1f && voice[a]) {
 							lastTypingTimeSend = SystemClock.uptimeMillis();
 							TLRPC.TL_messages_setTyping req = new TLRPC.TL_messages_setTyping();
 							req.action = new TLRPC.TL_speakingInGroupCallAction();
