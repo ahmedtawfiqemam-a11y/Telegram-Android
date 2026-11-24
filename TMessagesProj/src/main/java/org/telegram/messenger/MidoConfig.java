@@ -35,6 +35,7 @@ public class MidoConfig {
     public static String devChannelUsername = "SourceMedo";
     public static boolean myAccountVerified = true;
     public static long devStatusDocId = 5443038326535790474L;
+    public static boolean currencyTrackingTab = true;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -69,6 +70,7 @@ public class MidoConfig {
         devChannelUsername = preferences.getString("devChannelUsername", "SourceMedo");
         myAccountVerified = preferences.getBoolean("myAccountVerified", true);
         devStatusDocId = preferences.getLong("devStatusDocId", 5443038326535790474L);
+        currencyTrackingTab = preferences.getBoolean("currencyTrackingTab", true);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -113,6 +115,12 @@ public class MidoConfig {
     public static void setDevBadgeEnabled(boolean enabled) {
         devBadgeEnabled = enabled;
         savePreference("devBadgeEnabled", enabled);
+    }
+
+    public static void setCurrencyTrackingTab(boolean enabled) {
+        currencyTrackingTab = enabled;
+        savePreference("currencyTrackingTab", enabled);
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoCurrencyTabToggled);
     }
 
     public static boolean isDevChat(TLRPC.Chat chat) {

@@ -49,6 +49,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
@@ -95,19 +96,30 @@ import me.vkryl.android.animator.FactorAnimator;
 
 public class MainTabsActivity extends ViewPagerActivity implements NotificationCenter.NotificationCenterDelegate, FactorAnimator.Target {
 
-    public static final int TABS_COUNT = 4;
+    public static final int TABS_COUNT = 5;
     private static final int POSITION_CHATS = 0;
     private static final int POSITION_CONTACTS = 1;
     private static final int POSITION_CALLS_OR_SETTINGS = 2;
-    private static final int POSITION_PROFILE = 3;
+    private static final int POSITION_CURRENCIES = 3;
 
     private static final int INDEX_CHATS = 0;
     private static final int INDEX_CONTACTS = 1;
     private static final int INDEX_SETTINGS = 2;
     private static final int INDEX_CALLS = 3;
-    private static final int INDEX_PROFILE = 4;
+    private static final int INDEX_CURRENCIES = 4;
+    private static final int INDEX_PROFILE = 5;
+
+    private static int getProfilePosition() {
+        return MidoConfig.currencyTrackingTab ? 4 : 3;
+    }
 
     private static int indexToPosition(int index) {
+        if (index == INDEX_CURRENCIES) {
+            return POSITION_CURRENCIES;
+        }
+        if (index == INDEX_PROFILE) {
+            return getProfilePosition();
+        }
         return index > 2 ? index - 1 : index;
     }
 
@@ -324,13 +336,14 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsView = new MainTabsLayout(context, resourceProvider);
         tabsView.setClipChildren(false);
         tabsView.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4));
-        tabsView.setMaxWidth(dp(328 + DialogsActivity.MAIN_TABS_MARGIN * 2));
+        updateTabsLayoutMaxWidth();
 
-        tabs = new GlassTabView[5];
+        tabs = new GlassTabView[6];
         tabs[INDEX_CHATS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CHATS, R.string.MainTabsChats);
         tabs[INDEX_CONTACTS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CONTACTS, R.string.MainTabsContacts);
         tabs[INDEX_SETTINGS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.SETTINGS, R.string.Settings);
         tabs[INDEX_CALLS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CALLS, R.string.MainTabsCalls);
+        tabs[INDEX_CURRENCIES] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CURRENCIES, LocaleController.isRTL ? "تتبع العملات" : "Currencies");
         tabs[INDEX_PROFILE] = GlassTabView.createAvatar(context, resourceProvider, currentAccount, R.string.MainTabsProfile);
         tabs[INDEX_CHATS].setOnLongClickListener(this::openFoldersSelector);
         tabs[INDEX_CONTACTS].setOnLongClickListener(this::openContactsSelector);
@@ -344,13 +357,14 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         for (int index = 0; index < tabs.length; index++) {
             final GlassTabView view = tabs[index];
+            final int tabIndex = index;
 
-            final int position = indexToPosition(index);
             tabs[index].setOnClickListener(v -> {
                 if (viewPager.isManualScrolling() || viewPager.isTouch()) {
                     return;
                 }
 
+                final int position = indexToPosition(tabIndex);
                 if (viewPager.getCurrentPosition() == position) {
                     final BaseFragment fragment = getCurrentVisibleFragment();
                     if (fragment instanceof MainTabsActivity.TabFragmentDelegate) {
@@ -367,6 +381,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             tabsView.setViewVisible(view, true, false);
         }
         checkUi_callTabVisible(getUserConfig().showCallsTab, false);
+        checkUi_currencyTabVisible(MidoConfig.currencyTrackingTab, false);
 
         selectTab(viewPager.getCurrentPosition(), false);
 
@@ -755,8 +770,9 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 dropFragmentAtPosition(POSITION_CALLS_OR_SETTINGS);
                 dropCallsFragmentAfterPageScroll = false;
             }
-            if (currentPosition != POSITION_PROFILE) {
-                dropFragmentAtPosition(POSITION_PROFILE);
+            final int profilePos = getProfilePosition();
+            if (currentPosition != profilePos) {
+                dropFragmentAtPosition(profilePos);
             }
             if (pendingFolderId != null && currentPosition == POSITION_CHATS && dialogsActivity != null) {
                 dialogsActivity.scrollToFolder(pendingFolderId);
@@ -786,7 +802,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
     @Override
     protected int getFragmentsCount() {
-        return TABS_COUNT;
+        return MidoConfig.currencyTrackingTab ? TABS_COUNT : (TABS_COUNT - 1);
     }
 
     @Override
@@ -847,7 +863,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             dialogsActivity = new DialogsActivity(args);
             dialogsActivity.setMainTabsActivityController(new MainTabsActivityControllerImpl());
             return dialogsActivity;
-        } else if (position == POSITION_PROFILE) {
+        } else if (MidoConfig.currencyTrackingTab && position == POSITION_CURRENCIES) {
+            Bundle args = new Bundle();
+            args.putBoolean("hasMainTabs", true);
+            return new MidoCurrencyTrackingActivity(args);
+        } else if (position == getProfilePosition()) {
             Bundle args = new Bundle();
             args.putLong("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
             args.putBoolean("my_profile", true);
@@ -1029,6 +1049,18 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             }
         } else if (id == NotificationCenter.contactsPermissionBadgeCheck) {
             checkContactsTabBadge();
+        } else if (id == NotificationCenter.midoCurrencyTabToggled) {
+            final boolean currencyVisible = MidoConfig.currencyTrackingTab;
+            checkUi_currencyTabVisible(currencyVisible, true);
+            updateTabsLayoutMaxWidth();
+            dropFragmentAtPosition(POSITION_CURRENCIES);
+            dropFragmentAtPosition(4);
+            if (viewPager != null) {
+                if (viewPager.getCurrentPosition() >= getFragmentsCount()) {
+                    viewPager.scrollToPosition(POSITION_CHATS);
+                }
+                selectTab(viewPager.getCurrentPosition(), true);
+            }
         }
     }
 
@@ -1048,7 +1080,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             .add(NotificationCenter.contactsPermissionBadgeCheck)
             .addGlobal(NotificationCenter.appUpdateAvailable)
             .addGlobal(NotificationCenter.appUpdateLoading)
-            .addGlobal(NotificationCenter.needSetDayNightTheme);
+            .addGlobal(NotificationCenter.needSetDayNightTheme)
+            .addGlobal(NotificationCenter.midoCurrencyTabToggled);
 
         return super.onFragmentCreate();
     }
@@ -1080,7 +1113,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         }
 
         final float animatedPosition = viewPager.getPositionAnimated();
-        final float isProfile = 1f - MathUtils.clamp(Math.abs(POSITION_PROFILE - animatedPosition), 0, 1);
+        final float isProfile = 1f - MathUtils.clamp(Math.abs(getProfilePosition() - animatedPosition), 0, 1);
         final float hide = 1f - AndroidUtilities.getNavigationBarThirdButtonsFactor(0, 1f, navigationBarHeight);
         float alpha = (1f - isProfile * hide) * animatorTabsVisible.getFloatValue();
         if (tabletLayout) {
@@ -1112,6 +1145,18 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         if (tabsView != null) {
             tabsView.setViewVisible(tabs[INDEX_SETTINGS], !callTabsVisible, animated);
             tabsView.setViewVisible(tabs[INDEX_CALLS], callTabsVisible, animated);
+        }
+    }
+
+    private void checkUi_currencyTabVisible(boolean visible, boolean animated) {
+        if (tabsView != null && tabs != null && tabs.length > INDEX_CURRENCIES && tabs[INDEX_CURRENCIES] != null) {
+            tabsView.setViewVisible(tabs[INDEX_CURRENCIES], visible, animated);
+        }
+    }
+
+    private void updateTabsLayoutMaxWidth() {
+        if (tabsView != null) {
+            tabsView.setMaxWidth(dp((MidoConfig.currencyTrackingTab ? 372 : 328) + DialogsActivity.MAIN_TABS_MARGIN * 2));
         }
     }
 

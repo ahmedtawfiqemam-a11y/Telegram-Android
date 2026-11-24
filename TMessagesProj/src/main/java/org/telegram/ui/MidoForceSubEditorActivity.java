@@ -88,12 +88,12 @@ public class MidoForceSubEditorActivity extends BaseFragment {
         container.setOrientation(LinearLayout.VERTICAL);
         scrollView.addView(container, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
-        // Main editor card
+        // Main editor card (Telegram 13.2.2 rounded white card)
         LinearLayout editorCard = new LinearLayout(context);
         editorCard.setOrientation(LinearLayout.VERTICAL);
-        editorCard.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        editorCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(12), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
-        container.addView(editorCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
+        editorCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), Theme.getColor(Theme.key_windowBackgroundWhite)));
+        editorCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(14), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
+        container.addView(editorCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 12, 12, 0));
 
         TextView label = new TextView(context);
         label.setText("نص رسالة الاشتراك الإجباري (يدعم الإيموجي المميز والتنسيقات)");
@@ -152,12 +152,12 @@ public class MidoForceSubEditorActivity extends BaseFragment {
         editTextEmoji.setText(initial);
         editTextEmoji.setSelection(initial.length());
 
-        // Placeholders card
+        // Placeholders card (Telegram rounded white card)
         LinearLayout varsCard = new LinearLayout(context);
         varsCard.setOrientation(LinearLayout.VERTICAL);
-        varsCard.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        varsCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(12), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
-        container.addView(varsCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
+        varsCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16), Theme.getColor(Theme.key_windowBackgroundWhite)));
+        varsCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(14), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
+        container.addView(varsCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 12, 12, 12, 0));
 
         TextView varsTitle = new TextView(context);
         varsTitle.setText("متغيرات تلقائية (اضغط للإدراج):");
@@ -192,8 +192,13 @@ public class MidoForceSubEditorActivity extends BaseFragment {
         btn.setText(title);
         btn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12);
         btn.setTypeface(AndroidUtilities.bold());
-        btn.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
-        btn.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4), 0.12f)));
+        int accent = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4);
+        btn.setTextColor(accent);
+        btn.setBackground(Theme.createSimpleSelectorRoundRectDrawable(
+                AndroidUtilities.dp(10),
+                Theme.multAlpha(accent, 0.11f),
+                Theme.multAlpha(accent, 0.24f)
+        ));
         btn.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(6), AndroidUtilities.dp(10), AndroidUtilities.dp(6));
         btn.setOnClickListener(v -> action.run());
         parent.addView(btn, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, 0, 0, 6, 0));

@@ -1,9 +1,11 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.text.InputType;
 import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -17,6 +19,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.NotificationsCheckCell;
 import org.telegram.ui.Cells.TextCheckCell;
+import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
@@ -47,6 +50,10 @@ public class MidoSettingsActivity extends BaseFragment {
         fragmentView = frameLayout;
 
         listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, null);
+        listView.setCaptureSectionsDecoratorAllowed(true);
+        listView.adapter.setApplyBackground(false);
+        listView.setSections();
+        listView.setSectionsDrawBackground(true);
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         return fragmentView;
@@ -111,6 +118,11 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asButton(44, "📢 تخصيص قناة المطور الموثقة: @" + MidoConfig.devChannelUsername, "اضغط لتعديل يوزر قناة المطور التي تحمل شعار Major"));
         items.add(UItem.asShadow("تمنحك هذه الميزات مظهراً مميزاً وشريط موسيقى تفاعلي زجاجي مستوحى من exteraGram وشعار موثق حصري."));
 
+        items.add(UItem.asHeader("تتبع العملات والتحليل الحي (Currency Tracking)"));
+        items.add(UItem.asButtonCheck(45, "تبويب تتبع العملات في الشريط السفلي 📈", "إظهار صفحة وأيقونة تتبع وتحليل العملات (TON, GRAM, BEP20, USD, BTC) بالأسفل").setChecked(MidoConfig.currencyTrackingTab));
+        items.add(UItem.asButton(46, "📊 فتح صفحة تتبع العملات الآن", "عرض الأسعار الحية وتحليل التغير (كان ➔ أصبح) والرسوم البيانية"));
+        items.add(UItem.asShadow("يمكنك إظهار أو إخفاء تبويب تتبع العملات من الشريط السفلي الرئيسي للتطبيق في أي وقت."));
+
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
         items.add(UItem.asButton(11, "💬 مجموعة المناقشة والدعم الفني", "اضغط للانضمام لجروب النقاش وحل المشكلات"));
@@ -122,24 +134,19 @@ public class MidoSettingsActivity extends BaseFragment {
             MidoConfig.setForceSubEnabled(!MidoConfig.forceSubEnabled);
             setRowChecked(view, MidoConfig.forceSubEnabled);
         } else if (item.id == 31) {
-            if (getParentActivity() == null) return;
-            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle("قناة أو مجموعة الاشتراك الإجباري");
-            final EditText editText = new EditText(getParentActivity());
-            editText.setText(MidoConfig.forceSubChannel);
-            editText.setHint("@SourceMedo أو رابط القناة/الجروب");
-            builder.setView(editText);
-            builder.setPositiveButton("حفظ", (d, w) -> {
-                String val = editText.getText().toString().trim();
-                if (!TextUtils.isEmpty(val)) {
-                    MidoConfig.setForceSubChannel(val);
-                    if (listView != null && listView.adapter != null) {
-                        listView.adapter.update(true);
+            showInputDialog(
+                    "قناة أو مجموعة الاشتراك الإجباري",
+                    MidoConfig.forceSubChannel,
+                    "@SourceMedo أو رابط القناة/الجروب",
+                    val -> {
+                        if (!TextUtils.isEmpty(val)) {
+                            MidoConfig.setForceSubChannel(val);
+                            if (listView != null && listView.adapter != null) {
+                                listView.adapter.update(true);
+                            }
+                        }
                     }
-                }
-            });
-            builder.setNegativeButton("إلغاء", null);
-            showDialog(builder.create());
+            );
         } else if (item.id == 32) {
             presentFragment(new MidoForceSubEditorActivity());
         } else if (item.id == 33) {
@@ -203,46 +210,84 @@ public class MidoSettingsActivity extends BaseFragment {
             MidoConfig.setMyAccountVerified(!MidoConfig.myAccountVerified);
             setRowChecked(view, MidoConfig.myAccountVerified);
         } else if (item.id == 43) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle("معرف المطور الموثق");
-            final EditText editText = new EditText(getParentActivity());
-            editText.setText(MidoConfig.devUsername);
-            editText.setSelection(editText.getText().length());
-            builder.setView(editText);
-            builder.setPositiveButton("حفظ", (dialog, which) -> {
-                String val = editText.getText().toString().trim().replace("@", "");
-                if (!TextUtils.isEmpty(val)) {
-                    MidoConfig.setDevUsername(val);
-                    if (listView != null && listView.adapter != null) {
-                        listView.adapter.update(true);
+            showInputDialog(
+                    "معرف المطور الموثق",
+                    MidoConfig.devUsername,
+                    "@SourceMedo",
+                    val -> {
+                        String cleaned = val.replace("@", "");
+                        if (!TextUtils.isEmpty(cleaned)) {
+                            MidoConfig.setDevUsername(cleaned);
+                            if (listView != null && listView.adapter != null) {
+                                listView.adapter.update(true);
+                            }
+                        }
                     }
-                }
-            });
-            builder.setNegativeButton("إلغاء", null);
-            showDialog(builder.create());
+            );
         } else if (item.id == 44) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-            builder.setTitle("معرف قناة المطور الموثقة");
-            final EditText editText = new EditText(getParentActivity());
-            editText.setText(MidoConfig.devChannelUsername);
-            editText.setSelection(editText.getText().length());
-            builder.setView(editText);
-            builder.setPositiveButton("حفظ", (dialog, which) -> {
-                String val = editText.getText().toString().trim().replace("@", "");
-                if (!TextUtils.isEmpty(val)) {
-                    MidoConfig.setDevChannelUsername(val);
-                    if (listView != null && listView.adapter != null) {
-                        listView.adapter.update(true);
+            showInputDialog(
+                    "معرف قناة المطور الموثقة",
+                    MidoConfig.devChannelUsername,
+                    "@SourceMedo",
+                    val -> {
+                        String cleaned = val.replace("@", "");
+                        if (!TextUtils.isEmpty(cleaned)) {
+                            MidoConfig.setDevChannelUsername(cleaned);
+                            if (listView != null && listView.adapter != null) {
+                                listView.adapter.update(true);
+                            }
+                        }
                     }
-                }
-            });
-            builder.setNegativeButton("إلغاء", null);
-            showDialog(builder.create());
+            );
+        } else if (item.id == 45) {
+            MidoConfig.setCurrencyTrackingTab(!MidoConfig.currencyTrackingTab);
+            setRowChecked(view, MidoConfig.currencyTrackingTab);
+        } else if (item.id == 46) {
+            presentFragment(new MidoCurrencyTrackingActivity());
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {
             Browser.openUrl(getParentActivity(), "https://t.me/+m3DnjfmnWpFmYWVi");
         }
+    }
+
+    private interface OnTextSavedListener {
+        void onSaved(String value);
+    }
+
+    private void showInputDialog(String title, String currentVal, String hint, OnTextSavedListener listener) {
+        if (getParentActivity() == null) return;
+        Context context = getParentActivity();
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(title);
+
+        FrameLayout box = new FrameLayout(context);
+        box.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), AndroidUtilities.dp(4));
+
+        final EditTextBoldCursor editText = new EditTextBoldCursor(context);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+        editText.setHintColor(Theme.getColor(Theme.key_dialogTextHint));
+        editText.setLineColors(
+                Theme.getColor(Theme.key_dialogInputField),
+                Theme.getColor(Theme.key_dialogInputFieldActivated),
+                Theme.getColor(Theme.key_text_RedRegular)
+        );
+        editText.setCursorColor(Theme.getColor(Theme.key_dialogInputFieldActivated));
+        editText.setHint(hint);
+        editText.setText(currentVal != null ? currentVal : "");
+        editText.setSelection(editText.getText().length());
+        box.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 40, Gravity.TOP));
+
+        builder.setView(box);
+        builder.setPositiveButton("حفظ", (d, w) -> {
+            if (listener != null) {
+                listener.onSaved(editText.getText().toString().trim());
+            }
+        });
+        builder.setNegativeButton("إلغاء", null);
+        showDialog(builder.create());
     }
 
     private void setRowChecked(View view, boolean checked) {
