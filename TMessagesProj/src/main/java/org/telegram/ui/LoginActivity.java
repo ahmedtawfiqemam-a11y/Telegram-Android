@@ -2545,11 +2545,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 .putBoolean("proxy_enabled", true)
                                 .apply();
                         ConnectionsManager.setProxySettings(true, proxySettings);
-                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم تفعيل المضاد السحري بنجاح بواسطة المطور ميدو!").show();
+                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.contact_check, "تم تفعيل المضاد السحري بنجاح بواسطة المطور ميدو!").show();
                     } else {
                         MessagesController.getGlobalMainSettings().edit().putBoolean("proxy_enabled", false).apply();
                         ConnectionsManager.setProxySettings(false, null);
-                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم إيقاف المضاد السحري").show();
+                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.info, "تم إيقاف المضاد السحري").show();
                     }
                     updateProxyButton(true, true);
                 });
@@ -2567,7 +2567,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         .setMessage("إذا كان حسابك مسجلاً بالفعل على كمبيوتر أو هاتف آخر، أو مرتبطاً ببريد إلكتروني، فلن تحتاج لدفع أي رسوم أو انتظار رسائل SMS.\n\nمن جهازك المفتوح:\nافتح الإعدادات > الأجهزة > ربط جهاز، أو اكتب رقم هاتفك وسيقوم التطبيق بتحويلك مباشرة لإدخال الكود المستلم داخل تليجرام.")
                         .setPositiveButton("متابعة", (dialog, which) -> {
                             if (phoneField != null && phoneField.getText().length() > 0) {
-                                onNextPressed();
+                                onNextPressed(null);
                             } else {
                                 needShowAlert(getString(R.string.AppName), "يرجى كتابة رقم هاتفك أولاً للمتابعة.");
                             }
