@@ -11,6 +11,7 @@ import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoAntiOopsGuard;
 import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.MidoCustomAppIcon;
@@ -152,6 +153,13 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asButtonCheck(70, "تغبيش الشاشة تلقائياً عند تركها دون لمس 🔒", "تغبيش محتوى الدردشات وأسماء الجهات تلقائياً عند التوقف عن لمس الشاشة لثوانٍ").setChecked(MidoConfig.autoBlurOnIdle));
         items.add(UItem.asButton(71, "⏱️ مهلة التغبيش التلقائي: " + MidoConfig.autoBlurSeconds + " ثوانٍ", "اضغط لتحديد عدد الثواني قبل تفعيل التغبيش التلقائي"));
         items.add(UItem.asShadow("يحمي محتوى محادثاتك من أي شخص بجانبك إذا تركت الهاتف مفتوحاً دون لمس، وتُزال الضبابية بلمسة واحدة."));
+
+        items.add(UItem.asHeader("درع اللمس الخاطئ (Anti-Oops Guard)"));
+        items.add(UItem.asButtonCheck(75, "حماية جميع المجموعات تلقائياً 👥", "تطبيق درع التأكيد تلقائياً على جميع مجموعاتك دون الحاجة لتحديد كل مجموعة").setChecked(MidoAntiOopsGuard.isGuardAllGroups()));
+        items.add(UItem.asButtonCheck(76, "تأكيد قبل بدء المكالمة 📞", "طلب رسالة تأكيد عند النقر على الاتصال داخل المحادثات المحمية").setChecked(MidoAntiOopsGuard.isGuardCalls()));
+        items.add(UItem.asButtonCheck(77, "تأكيد قبل إرسال ملصق أو GIF 🎭", "طلب رسالة تأكيد قبل إرسال أي ستيكر أو GIF داخل المحادثات المحمية").setChecked(MidoAntiOopsGuard.isGuardStickers()));
+        items.add(UItem.asButtonCheck(78, "تأكيد قبل إرسال تفاعل (Reaction) ❤️", "طلب رسالة تأكيد عند النقر أو الضغط المزدوج لوضع تفاعل").setChecked(MidoAntiOopsGuard.isGuardReactions()));
+        items.add(UItem.asShadow("لتفعيل الدرع على محادثة أو مجموعة عمل معينة: افتح المحادثة ➔ القائمة (⋮) ➔ تفعيل درع اللمس الخاطئ 🛡️ (المحمية حالياً: " + MidoAntiOopsGuard.getGuardedCount() + ")."));
 
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
@@ -327,6 +335,18 @@ public class MidoSettingsActivity extends BaseFragment {
                 });
                 showDialog(builder.create());
             }
+        } else if (item.id == 75) {
+            MidoAntiOopsGuard.setGuardAllGroups(!MidoAntiOopsGuard.isGuardAllGroups());
+            setRowChecked(view, MidoAntiOopsGuard.isGuardAllGroups());
+        } else if (item.id == 76) {
+            MidoAntiOopsGuard.setGuardCalls(!MidoAntiOopsGuard.isGuardCalls());
+            setRowChecked(view, MidoAntiOopsGuard.isGuardCalls());
+        } else if (item.id == 77) {
+            MidoAntiOopsGuard.setGuardStickers(!MidoAntiOopsGuard.isGuardStickers());
+            setRowChecked(view, MidoAntiOopsGuard.isGuardStickers());
+        } else if (item.id == 78) {
+            MidoAntiOopsGuard.setGuardReactions(!MidoAntiOopsGuard.isGuardReactions());
+            setRowChecked(view, MidoAntiOopsGuard.isGuardReactions());
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {

@@ -141,6 +141,7 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.zxing.common.detector.MathUtils;
 
 import org.telegram.PhoneFormat.PhoneFormat;
+import org.telegram.messenger.MidoAntiOopsGuard;
 import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.MidoMemoryManager;
@@ -1735,8 +1736,11 @@ public class ChatActivity extends BaseFragment implements
     private final static int mido_follow_unjoined = 190;
     private final static int mido_voice_changer = 191;
     private final static int mido_memory_card = 192;
+    private final static int mido_anti_oops = 193;
     private ActionBarMenuSubItem midoFollowUnjoinedItem;
     private ActionBarMenuSubItem midoMemoryCardItem;
+    private ActionBarMenuSubItem midoAntiOopsItem;
+    private boolean midoBypassOopsReaction = false;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -3864,6 +3868,17 @@ public class ChatActivity extends BaseFragment implements
                             midoMemoryCardItem.setText("بطاقة الذاكرة والمواعيد 📝" + (memCnt > 0 ? (" (" + memCnt + ")") : ""));
                         }
                     });
+                } else if (id == mido_anti_oops) {
+                    boolean guarded = MidoAntiOopsGuard.toggleDialogGuard(dialog_id);
+                    if (midoAntiOopsItem != null) {
+                        midoAntiOopsItem.setText(guarded ? "إيقاف درع اللمس الخاطئ (مفعّل 🛡️)" : "تفعيل درع اللمس الخاطئ 🛡️");
+                    }
+                    BulletinFactory.of(ChatActivity.this).createSuccessBulletin(
+                            guarded
+                                    ? "تم تفعيل درع اللمس الخاطئ 🛡️ لحماية هذه المحادثة"
+                                    : "تم إيقاف درع اللمس الخاطئ لهذه المحادثة",
+                            themeDelegate
+                    ).show();
                 } else if (id == tag_message) {
                     if (tagSelector == null) {
                         showTagSelector();
@@ -4045,7 +4060,12 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id == call || id == video_call) {
                     if (currentUser != null && getParentActivity() != null) {
-                        VoIPHelper.startCall(currentUser, id == video_call, userInfo != null && userInfo.video_calls_available, getParentActivity(), getMessagesController().getUserFull(currentUser.id), getAccountInstance());
+                        Runnable startCallRun = () -> VoIPHelper.startCall(currentUser, id == video_call, userInfo != null && userInfo.video_calls_available, getParentActivity(), getMessagesController().getUserFull(currentUser.id), getAccountInstance());
+                        if (MidoAntiOopsGuard.shouldGuardCalls(dialog_id)) {
+                            MidoAntiOopsGuard.confirmAction(getParentActivity(), "بدء مكالمة", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً بدء المكالمة؟", startCallRun);
+                        } else {
+                            startCallRun.run();
+                        }
                     }
                 } else if (id == change_colors) {
                     showChatThemeBottomSheet();
@@ -4531,6 +4551,12 @@ public class ChatActivity extends BaseFragment implements
                         mido_memory_card,
                         R.drawable.msg_edit,
                         "بطاقة الذاكرة والمواعيد 📝" + (memCnt > 0 ? (" (" + memCnt + ")") : "")
+                );
+                boolean guarded = MidoAntiOopsGuard.isExplicitlyGuarded(dialog_id);
+                midoAntiOopsItem = headerItem.lazilyAddSubItem(
+                        mido_anti_oops,
+                        R.drawable.msg_block2,
+                        guarded ? "إيقاف درع اللمس الخاطئ (مفعّل 🛡️)" : "تفعيل درع اللمس الخاطئ 🛡️"
                 );
             }
         } else if (chatMode == MODE_EDIT_BUSINESS_LINK) {
@@ -7442,7 +7468,7 @@ public class ChatActivity extends BaseFragment implements
                 TLRPC.TL_document document = (TLRPC.TL_document) object;
                 Object parent = mentionContainer.getAdapter().getItemParent(position);
                 String query = MessageObject.findAnimatedEmojiEmoticon(document);
-                AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, price -> {
+                Runnable doSendSticker = () -> AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, price -> {
                     if (chatMode == MODE_SCHEDULED) {
                         AlertsCreator.createScheduleDatePickerDialog(getParentActivity(), dialog_id, (notify, scheduleDate, scheduleRepeatPeriod) -> SendMessagesHelper.getInstance(currentAccount).sendSticker(document, query, dialog_id, replyingMessageObject, getThreadMessage(), null, replyingQuote, null, notify, scheduleDate, 0, false, parent, getMessageChatSendParams(), 0, getSendMonoForumPeerId(), getSendMessageSuggestionParams()), themeDelegate);
                     } else {
@@ -7452,6 +7478,11 @@ public class ChatActivity extends BaseFragment implements
                     chatActivityEnterView.addStickerToRecent(document);
                     chatActivityEnterView.setFieldText("");
                 });
+                if (MidoAntiOopsGuard.shouldGuardStickers(dialog_id)) {
+                    MidoAntiOopsGuard.confirmAction(getParentActivity(), "إرسال ملصق", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً إرسال هذا الملصق؟", doSendSticker);
+                } else {
+                    doSendSticker.run();
+                }
             } else if (object instanceof TLRPC.Chat) {
                 TLRPC.Chat chat = (TLRPC.Chat) object;
                 if (searchingForUser && searchContainer != null && searchContainer.getVisibility() == View.VISIBLE) {
@@ -33920,6 +33951,17 @@ public class ChatActivity extends BaseFragment implements
         }
         if (getMessagesController().isFrozen()) {
             AccountFrozenAlert.show(currentAccount);
+            return;
+        }
+        if (!midoBypassOopsReaction && MidoAntiOopsGuard.shouldGuardReactions(dialog_id)) {
+            MidoAntiOopsGuard.confirmAction(getParentActivity(), "إرسال تفاعل (Reaction)", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً وضع أو تغيير هذا التفاعل على الرسالة؟", () -> {
+                midoBypassOopsReaction = true;
+                try {
+                    selectReaction(cell, primaryMessage, reactionsLayout, fromView, x, y, visibleReaction, fromDoubleTap, bigEmoji, addToRecent, withoutAnimation);
+                } finally {
+                    midoBypassOopsReaction = false;
+                }
+            });
             return;
         }
         if (visibleReaction != null && visibleReaction.isStar) {
