@@ -6672,6 +6672,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isChatNoForwards(TLRPC.Chat chat) {
+        if (MidoConfig.saveRestrictedContent) {
+            return false;
+        }
         if (chat == null) {
             return false;
         }
@@ -6689,6 +6692,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isPeerNoForwards(long dialogId) {
+        if (MidoConfig.saveRestrictedContent) {
+            return false;
+        }
         return dialogId > 0 ? isUserNoForwards(dialogId) : isChatNoForwards(-dialogId);
     }
 
@@ -6697,6 +6703,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean isUserNoForwards(TLRPC.UserFull userFull) {
+        if (MidoConfig.saveRestrictedContent) {
+            return false;
+        }
         if (userFull == null) {
             return false;
         }
@@ -19583,6 +19592,19 @@ public class MessagesController extends BaseController implements NotificationCe
                     message.attachPath = "";
                 }
 
+                if (MidoConfig.showEditHistory && message != null) {
+                    try {
+                        TLRPC.Message oldMsg = getMessagesStorage().getMessage(message.dialog_id, message.id);
+                        if (oldMsg != null && !android.text.TextUtils.isEmpty(oldMsg.message) && !oldMsg.message.equals(message.message)) {
+                            String originalNote = "
+
+✏️ [الأصل]: " + oldMsg.message;
+                            if (!message.message.contains("[الأصل]:")) {
+                                message.message = message.message + originalNote;
+                            }
+                        }
+                    } catch (Exception ignore) {}
+                }
                 ImageLoader.saveMessageThumbs(message);
                 AndroidUtilities.runOnUIThread(() -> {
                     getSendMessagesHelper().onMessageEdited(message);

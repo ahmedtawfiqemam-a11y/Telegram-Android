@@ -14783,7 +14783,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (DialogObject.isEncryptedDialog(currentDialogId) && !isEmbedVideo || noforwards) {
                 setItemVisible(sendItem, false, false);
             }
-            if (isEmbedVideo || newMessageObject.messageOwner.ttl != 0 && newMessageObject.messageOwner.ttl < 60 * 60 || noforwards) {
+            if (isEmbedVideo || (!MidoConfig.saveExpiringMedia && newMessageObject.messageOwner.ttl != 0 && newMessageObject.messageOwner.ttl < 60 * 60) || (!MidoConfig.saveRestrictedContent && noforwards)) {
                 allowShare = false;
                 galleryButton.setVisibility(View.GONE);
                 galleryGap.setVisibility(View.GONE);
@@ -17459,8 +17459,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 (messageObject.messageOwner != null && messageObject.messageOwner.noforwards)) || messageObject != null && messageObject.hasRevealedExtendedMedia() ||
                 isPageBlocksNoForwards(pageBlocksAdapter)
             ) {
-                windowLayoutParams.flags |= WindowManager.LayoutParams.FLAG_SECURE;
-                AndroidUtilities.logFlagSecure();
+                if (!MidoConfig.allowScreenshots) {
+                    windowLayoutParams.flags |= WindowManager.LayoutParams.FLAG_SECURE;
+                    AndroidUtilities.logFlagSecure();
+                } else {
+                    windowLayoutParams.flags &=~ WindowManager.LayoutParams.FLAG_SECURE;
+                }
             } else {
                 windowLayoutParams.flags &=~ WindowManager.LayoutParams.FLAG_SECURE;
                 AndroidUtilities.logFlagSecure();

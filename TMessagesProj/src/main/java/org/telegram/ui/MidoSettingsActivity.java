@@ -48,15 +48,42 @@ public class MidoSettingsActivity extends BaseFragment {
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        items.add(UItem.asHeader("وضع الشبح والخصوصية القصوى (Ghost Mode)"));
-        
-        items.add(UItem.asCheck(1, "منع حذف الرسائل (Anti-Delete)")
+        items.add(UItem.asHeader("فك القيود وحماية الوسائط (Restricted Content)"));
+        items.add(UItem.asCheck(20, "تخطي حظر الحفظ والتحميل 🔓 (Save Restricted)")
+                .setChecked(MidoConfig.saveRestrictedContent)
+                .setValue("حفظ وتنزيل ونسخ الوسائط من القنوات والمجموعات المقيدة بحرية"));
+
+        items.add(UItem.asCheck(21, "السماح بلقطات الشاشة 📸 (Allow Screenshots)")
+                .setChecked(MidoConfig.allowScreenshots)
+                .setValue("أخذ سكرين شوت في المحادثات السرية والقنوات المحمية بدون قيود"));
+
+        items.add(UItem.asCheck(22, "حفظ وسائط العرض لمرة واحدة ⏳ (Save View-Once)")
+                .setChecked(MidoConfig.saveExpiringMedia)
+                .setValue("حفظ الصور والفيديوهات والبصمات ذاتية التدمير في المعرض دون اختفائها"));
+        items.add(UItem.asShadow("تتيح لك هذه الميزات التحكم الكامل وتخطي أي قيود يفرضها منشئو القنوات أو أصحاب المحادثات."));
+
+        items.add(UItem.asHeader("الرسائل والمحادثات المتقدمة (Advanced Chat)"));
+        items.add(UItem.asCheck(1, "منع حذف الرسائل 🛡️ (Anti-Delete)")
                 .setChecked(MidoConfig.antiDelete)
                 .setValue("الاحتفاظ بالرسائل حتى لو حذفها الطرف الآخر لجميع الأطراف"));
 
+        items.add(UItem.asCheck(23, "معرفة الرسائل قبل التعديل ✏️ (Edit History)")
+                .setChecked(MidoConfig.showEditHistory)
+                .setValue("إظهار النص الأصلي القديم للرسالة قبل قيام الطرف الآخر بتعديلها"));
+
+        items.add(UItem.asCheck(24, "إعادة توجيه بدون اقتباس 🔄 (Forward without Quote)")
+                .setChecked(MidoConfig.forwardWithoutQuote)
+                .setValue("تحويل الرسائل والوسائط بدون اسم المرسل الأصلي وبدون علامة التوجيه"));
+
+        items.add(UItem.asCheck(25, "تأكيد قبل إجراء المكالمة 📞 (Confirm Call)")
+                .setChecked(MidoConfig.confirmCall)
+                .setValue("طلب تأكيد بنعم أو لا قبل الاتصال لمنع المكالمات بالخطأ"));
+        items.add(UItem.asShadow("أدوات دردشة حصرية تمنحك تفوقاً وراحة كاملة أثناء المراسلة."));
+
+        items.add(UItem.asHeader("وضع الشبح والخصوصية القصوى (Ghost Mode)"));
         items.add(UItem.asCheck(4, "إخفاء علامات قراءة الرسائل (Ghost Read)")
                 .setChecked(MidoConfig.hideReadReceipts)
-                .setValue("قراءة الرسائل والاستماع للبصمات دون إرسال علامة الصح الأزرق للمرسل"));
+                .setValue("قراءة الرسائل والاستماع للبصمات دون إرسال الصح الأزرق للمرسل"));
 
         items.add(UItem.asCheck(5, "تجميد آخر ظهور (Freeze Last Seen)")
                 .setChecked(MidoConfig.freezeLastSeen)
@@ -78,8 +105,6 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setChecked(MidoConfig.ghostCall)
                 .setValue("الدخول للمكالمات الجماعية بوضع المستمع الصامت المتخفي ومنع بث الصوت"));
 
-        items.add(UItem.asShadow("ميزات وضع الشبح تمنحك خصوصية مطلقة أثناء استخدام تيليجرام دون أن يلاحظ أحد وجودك."));
-
         items.add(UItem.asHeader("تعدد الحسابات (Multi-Accounts)"));
         items.add(UItem.asCheck(2, "تعدد الحسابات الخارق 🚀 (20 حساب)")
                 .setChecked(MidoConfig.unlimitedAccounts)
@@ -93,10 +118,40 @@ public class MidoSettingsActivity extends BaseFragment {
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == 1) {
+        if (item.id == 20) {
+            MidoConfig.setSaveRestrictedContent(!MidoConfig.saveRestrictedContent);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.saveRestrictedContent);
+            }
+        } else if (item.id == 21) {
+            MidoConfig.setAllowScreenshots(!MidoConfig.allowScreenshots);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.allowScreenshots);
+            }
+        } else if (item.id == 22) {
+            MidoConfig.setSaveExpiringMedia(!MidoConfig.saveExpiringMedia);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.saveExpiringMedia);
+            }
+        } else if (item.id == 1) {
             MidoConfig.setAntiDelete(!MidoConfig.antiDelete);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.antiDelete);
+            }
+        } else if (item.id == 23) {
+            MidoConfig.setShowEditHistory(!MidoConfig.showEditHistory);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.showEditHistory);
+            }
+        } else if (item.id == 24) {
+            MidoConfig.setForwardWithoutQuote(!MidoConfig.forwardWithoutQuote);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.forwardWithoutQuote);
+            }
+        } else if (item.id == 25) {
+            MidoConfig.setConfirmCall(!MidoConfig.confirmCall);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.confirmCall);
             }
         } else if (item.id == 4) {
             MidoConfig.setHideReadReceipts(!MidoConfig.hideReadReceipts);

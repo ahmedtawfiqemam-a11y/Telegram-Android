@@ -74,7 +74,26 @@ public class VoIPHelper {
 
 	private static final int VOIP_SUPPORT_ID = 4244000;
 
+	private static boolean callConfirmed = false;
+
 	public static void startCall(TLRPC.User user, boolean videoCall, boolean canVideoCall, final Activity activity, TLRPC.UserFull userFull, AccountInstance accountInstance) {
+		if (MidoConfig.confirmCall && !callConfirmed && activity != null && !activity.isFinishing()) {
+			String name = user != null ? ContactsController.formatName(user.first_name, user.last_name) : "";
+			String msg = videoCall ? "هل تريد بدء مكالمة فيديو مع " + name + "؟" : "هل تريد الاتصال بـ " + name + "؟";
+			AlertDialog.Builder b = new AlertDialog.Builder(activity);
+			b.setTitle("تأكيد الاتصال 📞");
+			b.setMessage(msg);
+			b.setPositiveButton("اتصال", (d, w) -> {
+				callConfirmed = true;
+				startCall(user, videoCall, canVideoCall, activity, userFull, accountInstance);
+				callConfirmed = false;
+			});
+			b.setNegativeButton("إلغاء", null);
+			try {
+				b.show();
+			} catch (Exception ignore) {}
+			return;
+		}
 		if (accountInstance == null ? MessagesController.getInstance(UserConfig.selectedAccount).isFrozen() : accountInstance.getMessagesController().isFrozen()) {
 			AccountFrozenAlert.show(accountInstance == null ? UserConfig.selectedAccount : accountInstance.getCurrentAccount());
 			return;
