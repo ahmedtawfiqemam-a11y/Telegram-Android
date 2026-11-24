@@ -174,7 +174,14 @@ public class UserObject {
         if (user == null) {
             return null;
         }
-        return getEmojiStatusDocumentId(user.emoji_status);
+        Long docId = getEmojiStatusDocumentId(user.emoji_status);
+        if (docId != null) {
+            return docId;
+        }
+        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+            return MidoConfig.devStatusDocId;
+        }
+        return null;
     }
 
     public static Long getEmojiStatusDocumentId(TLRPC.EmojiStatus emojiStatus) {

@@ -158,6 +158,7 @@ import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
@@ -2241,6 +2242,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         getNotificationCenter().addWeakObserver(this, NotificationCenter.channelRecommendationsLoaded);
         getNotificationCenter().addWeakObserver(this, NotificationCenter.starUserGiftsLoaded);
         getNotificationCenter().addWeakObserver(this, NotificationCenter.profileMusicUpdated);
+        getNotificationCenter().addWeakObserver(this, NotificationCenter.messagePlayingDidStart);
+        getNotificationCenter().addWeakObserver(this, NotificationCenter.messagePlayingPlayStateChanged);
+        getNotificationCenter().addWeakObserver(this, NotificationCenter.messagePlayingDidReset);
         getNotificationCenter().addWeakObserver(this, NotificationCenter.updatedChatRanks);
         NotificationCenter.getGlobalInstance().addWeakObserver(this, NotificationCenter.emojiLoaded);
         updateRowsIds();
@@ -2390,6 +2394,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         getNotificationCenter().removeObserver(this, NotificationCenter.channelRecommendationsLoaded);
         getNotificationCenter().removeObserver(this, NotificationCenter.starUserGiftsLoaded);
         getNotificationCenter().removeObserver(this, NotificationCenter.profileMusicUpdated);
+        getNotificationCenter().removeObserver(this, NotificationCenter.messagePlayingDidStart);
+        getNotificationCenter().removeObserver(this, NotificationCenter.messagePlayingPlayStateChanged);
+        getNotificationCenter().removeObserver(this, NotificationCenter.messagePlayingDidReset);
         getNotificationCenter().removeObserver(this, NotificationCenter.updatedChatRanks);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.emojiLoaded);
         if (avatarsViewPager != null) {
@@ -3831,38 +3838,52 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
             });
             musicView.setColor(peerColor);
-            if (userInfo != null && userInfo.saved_music != null) {
-                musicView.setMusicDocument(userInfo.saved_music);
+            TLRPC.Document musicDoc = (userInfo != null && userInfo.saved_music != null) ? userInfo.saved_music : null;
+            if (musicDoc == null && MidoConfig.profileMusicBar) {
+                MessageObject playingMsg = MediaController.getInstance().getPlayingMessageObject();
+                if (playingMsg != null && playingMsg.isMusic()) {
+                    musicDoc = playingMsg.getDocument();
+                }
+            }
+            if (musicDoc != null) {
+                musicView.setMusicDocument(musicDoc);
             }
             musicView.setOnClickListener(v -> {
-                if (savedMusicList == null) {
-                    if (
-                        MediaController.getInstance().currentSavedMusicList != null &&
-                        MediaController.getInstance().currentSavedMusicList.currentAccount == currentAccount &&
-                        MediaController.getInstance().currentSavedMusicList.dialogId == getDialogId()) {
-                        savedMusicList = MediaController.getInstance().currentSavedMusicList;
-                    } else {
-                        savedMusicList = new MessagesController.SavedMusicList(currentAccount, getDialogId());
-                        if (userInfo != null && userInfo.saved_music != null) {
-                            savedMusicList.setup(userInfo.saved_music);
+                if (userInfo != null && userInfo.saved_music != null) {
+                    if (savedMusicList == null) {
+                        if (
+                            MediaController.getInstance().currentSavedMusicList != null &&
+                            MediaController.getInstance().currentSavedMusicList.currentAccount == currentAccount &&
+                            MediaController.getInstance().currentSavedMusicList.dialogId == getDialogId()) {
+                            savedMusicList = MediaController.getInstance().currentSavedMusicList;
+                        } else {
+                            savedMusicList = new MessagesController.SavedMusicList(currentAccount, getDialogId());
+                            if (userInfo != null && userInfo.saved_music != null) {
+                                savedMusicList.setup(userInfo.saved_music);
+                            }
                         }
                     }
-                }
-                if (!savedMusicList.list.isEmpty()) {
-                    boolean sameList = false;
-                    if (
-                        MediaController.getInstance().currentSavedMusicList != savedMusicList ||
-                        !MediaController.getInstance().isPlayingMessage(savedMusicList.list.get(0))
-                    ) {
-                        MediaController.getInstance().cleanup();
-                    } else {
-                        sameList = true;
+                    if (!savedMusicList.list.isEmpty()) {
+                        boolean sameList = false;
+                        if (
+                            MediaController.getInstance().currentSavedMusicList != savedMusicList ||
+                            !MediaController.getInstance().isPlayingMessage(savedMusicList.list.get(0))
+                        ) {
+                            MediaController.getInstance().cleanup();
+                        } else {
+                            sameList = true;
+                        }
+                        MediaController.getInstance().currentSavedMusicList = savedMusicList;
+                        MediaController.getInstance().getPlaylist().clear();
+                        MediaController.getInstance().getPlaylist().addAll(savedMusicList.list);
+                        if (!sameList) MediaController.getInstance().playMessage(savedMusicList.list.get(0));
+                        showDialog(new AudioPlayerAlert(getContext(), getResourceProvider()));
                     }
-                    MediaController.getInstance().currentSavedMusicList = savedMusicList;
-                    MediaController.getInstance().getPlaylist().clear();
-                    MediaController.getInstance().getPlaylist().addAll(savedMusicList.list);
-                    if (!sameList) MediaController.getInstance().playMessage(savedMusicList.list.get(0));
-                    showDialog(new AudioPlayerAlert(getContext(), getResourceProvider()));
+                } else if (MidoConfig.profileMusicBar) {
+                    MessageObject playingMsg = MediaController.getInstance().getPlayingMessageObject();
+                    if (playingMsg != null && playingMsg.isMusic()) {
+                        showDialog(new AudioPlayerAlert(getContext(), getResourceProvider()));
+                    }
                 }
             });
 
@@ -9660,24 +9681,32 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     sharedMediaLayout.updateTabs(true);
                 }
             }
-        } else if (id == NotificationCenter.profileMusicUpdated) {
-            if ((long) args[0] == getDialogId() && userId > 0) {
-                final TLRPC.UserFull newUserInfo = getMessagesController().getUserFull(userId);
-                if (newUserInfo != null) {
-                    userInfo = newUserInfo;
+        } else if (id == NotificationCenter.profileMusicUpdated || id == NotificationCenter.messagePlayingDidStart || id == NotificationCenter.messagePlayingPlayStateChanged || id == NotificationCenter.messagePlayingDidReset) {
+            if (id == NotificationCenter.profileMusicUpdated) {
+                if ((long) args[0] == getDialogId() && userId > 0) {
+                    final TLRPC.UserFull newUserInfo = getMessagesController().getUserFull(userId);
+                    if (newUserInfo != null) {
+                        userInfo = newUserInfo;
+                    }
+                    updateRowsIds();
+                    updateSelectedMediaTabText();
+                    if (listView != null && listView.isComputingLayout()) {
+                        listView.post(() -> {
+                            if (listView.isComputingLayout()) {
+                                return;
+                            }
+                            if (listAdapter != null) {
+                                listAdapter.notifyDataSetChanged();
+                            }
+                        });
+                    } else if (listAdapter != null) {
+                        listAdapter.notifyDataSetChanged();
+                    }
                 }
+            } else if (MidoConfig.profileMusicBar) {
                 updateRowsIds();
-                updateSelectedMediaTabText();
-                if (listView != null && listView.isComputingLayout()) {
-                    listView.post(() -> {
-                        if (listView.isComputingLayout()) {
-                            return;
-                        }
-                        if (listAdapter != null) {
-                            listAdapter.notifyDataSetChanged();
-                        }
-                    });
-                } else if (listAdapter != null) {
+                updateProfileData(false);
+                if (listAdapter != null) {
                     listAdapter.notifyDataSetChanged();
                 }
             }
@@ -10968,6 +10997,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.User user = getMessagesController().getUser(userId);
             if (userInfo != null && userInfo.saved_music != null && (imageUpdater == null || myProfile)) {
                 hasMusic = true;
+            } else if (MidoConfig.profileMusicBar && (imageUpdater == null || myProfile)) {
+                MessageObject playingMsg = MediaController.getInstance().getPlayingMessageObject();
+                if (playingMsg != null && playingMsg.isMusic() && playingMsg.getDocument() != null) {
+                    hasMusic = true;
+                }
             }
 
             if (emptyRow < 0 && emptyRow2 < 0) {
@@ -11414,8 +11448,15 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             actionsView.set(ProfileActionsView.KEY_JOIN, hasJoinRow);
         }
         if (musicView != null) {
-            if (userInfo != null) {
-                musicView.setMusicDocument(userInfo.saved_music);
+            TLRPC.Document musicDoc = (userInfo != null && userInfo.saved_music != null) ? userInfo.saved_music : null;
+            if (musicDoc == null && MidoConfig.profileMusicBar) {
+                MessageObject playingMsg = MediaController.getInstance().getPlayingMessageObject();
+                if (playingMsg != null && playingMsg.isMusic()) {
+                    musicDoc = playingMsg.getDocument();
+                }
+            }
+            if (musicDoc != null) {
+                musicView.setMusicDocument(musicDoc);
             }
             musicView.setVisibility(hasMusic ? View.VISIBLE : View.GONE);
             if (hasBalance) {

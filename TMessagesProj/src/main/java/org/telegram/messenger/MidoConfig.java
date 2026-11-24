@@ -1,6 +1,7 @@
 package org.telegram.messenger;
 
 import android.content.SharedPreferences;
+import org.telegram.tgnet.TLRPC;
 
 public class MidoConfig {
     public static boolean antiDelete = true;
@@ -26,6 +27,11 @@ public class MidoConfig {
 يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
 #ChannelLink";
     public static boolean forceSubExcludeContacts = true;
+    public static boolean profileMusicBar = true;
+    public static boolean devBadgeEnabled = true;
+    public static String devUsername = "SourceMedo";
+    public static boolean myAccountVerified = true;
+    public static long devStatusDocId = 5443038326535790474L;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -56,7 +62,76 @@ public class MidoConfig {
 يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
 #ChannelLink");
         forceSubExcludeContacts = preferences.getBoolean("forceSubExcludeContacts", true);
+        profileMusicBar = preferences.getBoolean("profileMusicBar", true);
+        devBadgeEnabled = preferences.getBoolean("devBadgeEnabled", true);
+        devUsername = preferences.getString("devUsername", "SourceMedo");
+        myAccountVerified = preferences.getBoolean("myAccountVerified", true);
+        devStatusDocId = preferences.getLong("devStatusDocId", 5443038326535790474L);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
+    }
+
+    public static boolean isDevUser(TLRPC.User user) {
+        if (user == null) {
+            return false;
+        }
+        if (myAccountVerified) {
+            long currentId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+            if (currentId != 0 && user.id == currentId) {
+                return true;
+            }
+        }
+        String dev = devUsername != null ? devUsername.replace("@", "").trim() : "SourceMedo";
+        if (user.username != null) {
+            if (user.username.equalsIgnoreCase("SourceMedo") || 
+                user.username.equalsIgnoreCase("Medo") || 
+                (!dev.isEmpty() && user.username.equalsIgnoreCase(dev))) {
+                return true;
+            }
+        }
+        if (user.usernames != null) {
+            for (int i = 0; i < user.usernames.size(); i++) {
+                TLRPC.TL_username u = user.usernames.get(i);
+                if (u != null && u.username != null) {
+                    if (u.username.equalsIgnoreCase("SourceMedo") || 
+                        u.username.equalsIgnoreCase("Medo") || 
+                        (!dev.isEmpty() && u.username.equalsIgnoreCase(dev))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public static void setProfileMusicBar(boolean enabled) {
+        profileMusicBar = enabled;
+        savePreference("profileMusicBar", enabled);
+    }
+
+    public static void setDevBadgeEnabled(boolean enabled) {
+        devBadgeEnabled = enabled;
+        savePreference("devBadgeEnabled", enabled);
+    }
+
+    public static void setDevUsername(String username) {
+        devUsername = username;
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putString("devUsername", username).apply();
+        }
+    }
+
+    public static void setMyAccountVerified(boolean enabled) {
+        myAccountVerified = enabled;
+        savePreference("myAccountVerified", enabled);
+    }
+
+    public static void setDevStatusDocId(long docId) {
+        devStatusDocId = docId;
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putLong("devStatusDocId", docId).apply();
+        }
     }
 
     public static void setAntiDelete(boolean enabled) {

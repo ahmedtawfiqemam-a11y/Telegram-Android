@@ -6715,9 +6715,29 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public TLRPC.User getUser(Long id) {
         if (id == 0) {
-            return UserConfig.getInstance(currentAccount).getCurrentUser();
+            TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
+            if (currentUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(currentUser)) {
+                currentUser.verified = true;
+                if (currentUser.emoji_status == null) {
+                    TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
+                    status.flags = 0;
+                    status.document_id = MidoConfig.devStatusDocId;
+                    currentUser.emoji_status = status;
+                }
+            }
+            return currentUser;
         }
-        return users.get(id);
+        TLRPC.User user = users.get(id);
+        if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+            user.verified = true;
+            if (user.emoji_status == null) {
+                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
+                status.flags = 0;
+                status.document_id = MidoConfig.devStatusDocId;
+                user.emoji_status = status;
+            }
+        }
+        return user;
     }
 
     public TLObject getUserOrChat(long dialogId) {
@@ -6841,8 +6861,26 @@ public class MessagesController extends BaseController implements NotificationCe
         if (user == null) {
             return false;
         }
+        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+            user.verified = true;
+            if (user.emoji_status == null) {
+                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
+                status.flags = 0;
+                status.document_id = MidoConfig.devStatusDocId;
+                user.emoji_status = status;
+            }
+        }
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
+        if (oldUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(oldUser)) {
+            oldUser.verified = true;
+            if (oldUser.emoji_status == null) {
+                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
+                status.flags = 0;
+                status.document_id = MidoConfig.devStatusDocId;
+                oldUser.emoji_status = status;
+            }
+        }
         if (oldUser == user && !force) {
             return false;
         }

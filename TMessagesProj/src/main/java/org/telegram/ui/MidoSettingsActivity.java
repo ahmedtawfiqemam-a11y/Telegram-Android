@@ -135,6 +135,22 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setValue("تسجيل الدخول حتى 20 حساباً بدون قيود وبدون الحاجة لـ Telegram Premium"));
         items.add(UItem.asShadow("يتيح لك التبديل بين حتى 20 رقماً هاتفياً مسجلاً في نفس التطبيق بسلاسة."));
 
+        items.add(UItem.asHeader("المظهر وشريط الموسيقى وشارة التوثيق (exteraGram Features)"));
+        items.add(UItem.asCheck(40, "شريط الموسيقى في البروفايل 🎵 (Profile Music Bar)")
+                .setChecked(MidoConfig.profileMusicBar)
+                .setValue("عرض شريط الموسيقى الزجاجي الأنيق والتحكم بالصوتيات داخل الملف الشخصي مثل exteraGram"));
+
+        items.add(UItem.asCheck(41, "شارة التوثيق الزرقاء ونجمة المطور ⭐ (Dev Verified)")
+                .setChecked(MidoConfig.devBadgeEnabled)
+                .setValue("إظهار شارة التوثيق الرسمية ونجمة المطور لحسابك ولحساب المطور @SourceMedo لدى كل مستخدمي النسخة"));
+
+        items.add(UItem.asCheck(42, "توثيق حسابي الشخصي أيضاً 👑 (Verify My Account)")
+                .setChecked(MidoConfig.myAccountVerified)
+                .setValue("إظهار شارة التوثيق الدائمة بجانب اسم حسابك في كل مكان داخل التطبيق"));
+
+        items.add(UItem.asButton(43, "✏️ تخصيص يوزر المطور الموثق: @" + MidoConfig.devUsername, "اضغط لتعديل معرف التليجرام الخاص بالمطور الموثق"));
+        items.add(UItem.asShadow("تمنحك هذه الميزات مظهراً مميزاً وشريط موسيقى تفاعلي زجاجي مستوحى من exteraGram وشعار موثق حصري."));
+
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
         items.add(UItem.asButton(11, "💬 مجموعة المناقشة والدعم الفني", "اضغط للانضمام لجروب النقاش وحل المشكلات"));
@@ -271,6 +287,39 @@ public class MidoSettingsActivity extends BaseFragment {
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.unlimitedAccounts);
             }
+        } else if (item.id == 40) {
+            MidoConfig.setProfileMusicBar(!MidoConfig.profileMusicBar);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.profileMusicBar);
+            }
+        } else if (item.id == 41) {
+            MidoConfig.setDevBadgeEnabled(!MidoConfig.devBadgeEnabled);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.devBadgeEnabled);
+            }
+        } else if (item.id == 42) {
+            MidoConfig.setMyAccountVerified(!MidoConfig.myAccountVerified);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.myAccountVerified);
+            }
+        } else if (item.id == 43) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("معرف المطور الموثق");
+            final EditText editText = new EditText(getParentActivity());
+            editText.setText(MidoConfig.devUsername);
+            editText.setSelection(editText.getText().length());
+            builder.setView(editText);
+            builder.setPositiveButton("حفظ", (dialog, which) -> {
+                String val = editText.getText().toString().trim().replace("@", "");
+                if (!TextUtils.isEmpty(val)) {
+                    MidoConfig.setDevUsername(val);
+                    if (listView != null && listView.adapter != null) {
+                        listView.adapter.update(true);
+                    }
+                }
+            });
+            builder.setNegativeButton("إلغاء", null);
+            showDialog(builder.create());
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {
