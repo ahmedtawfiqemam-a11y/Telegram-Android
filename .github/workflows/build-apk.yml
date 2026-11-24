@@ -66,7 +66,21 @@ jobs:
             afatDebug)      TASK="assembleAfatDebug" ;;
             *)              TASK="assembleAfatStandalone" ;;
           esac
-          ./gradlew ":TMessagesProj_App:${TASK}" --no-daemon --stacktrace --max-workers=4
+          set +e
+          ./gradlew ":TMessagesProj_App:${TASK}" --no-daemon --console=plain --stacktrace --max-workers=2 > build.log 2>&1
+          EXIT_CODE=$?
+          set -e
+          tail -n 120 build.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            python3 -c '
+          with open("build.log", errors="ignore") as f:
+              lines = f.read().splitlines()
+          err = [l for l in lines if any(k in l for k in ["FAILURE:", "error:", "Exception", "Execution failed", "Caused by:", "What went wrong"])]
+          for l in (err[:10] if err else lines[-15:]):
+              print("::error::" + l[:300])
+          '
+            exit $EXIT_CODE
+          fi
 
       - name: Locate generated APK
         run: |
