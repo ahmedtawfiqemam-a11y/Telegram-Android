@@ -529,6 +529,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 setVisibility(GONE);
             }
         });
+        midoIdleBlurOverlay = new org.telegram.ui.Components.MidoIdleBlurOverlay(this, drawerLayoutContainer);
+        frameLayout.addView(midoIdleBlurOverlay, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         setupActionBarLayout();
         drawerLayoutContainer.setParentActionBarLayout(actionBarLayout);
         actionBarLayout.setDrawerLayoutContainer(drawerLayoutContainer);
@@ -6889,16 +6891,24 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.activityPermissionsGranted, requestCode, permissions, grantResults);
     }
 
+    private org.telegram.ui.Components.MidoIdleBlurOverlay midoIdleBlurOverlay;
+
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
         voipLaunchedInBackground = false;
+        if (midoIdleBlurOverlay != null) {
+            midoIdleBlurOverlay.onUserTouched();
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         isResumed = false;
+        if (midoIdleBlurOverlay != null) {
+            midoIdleBlurOverlay.onHostPaused();
+        }
         WidgetMedia.onAppPaused(true);
         PipCoordinator.getInstance().onActivityPause(this);
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);
@@ -7256,6 +7266,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         checkFreeDiscSpace(0);
         MediaController.checkGallery();
         onPasscodeResume();
+        if (midoIdleBlurOverlay != null) {
+            midoIdleBlurOverlay.onHostResumed();
+        }
         if (passcodeDialog == null || passcodeDialog.passcodeView.getVisibility() != View.VISIBLE) {
             actionBarLayout.onResume();
             if (AndroidUtilities.isTablet()) {
@@ -7843,6 +7856,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             }
             if (ApplicationLoader.isScreenOn) {
                 onPasscodeResume();
+                if (midoIdleBlurOverlay != null) {
+                    midoIdleBlurOverlay.onHostResumed();
+                }
             } else {
                 onPasscodePause();
             }

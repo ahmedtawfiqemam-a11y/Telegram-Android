@@ -148,6 +148,11 @@ public class MidoSettingsActivity extends BaseFragment {
         }
         items.add(UItem.asShadow("يمكنك أيضاً اختيار أيقونات التطبيق المدفوعة أو صورتك الخاصة مباشرة من: الإعدادات ➔ إعدادات المحادثات ➔ أيقونة التطبيق."));
 
+        items.add(UItem.asHeader("حماية خصوصية الشاشة الذكية (Auto-Blur on Idle)"));
+        items.add(UItem.asButtonCheck(70, "تغبيش الشاشة تلقائياً عند تركها دون لمس 🔒", "تغبيش محتوى الدردشات وأسماء الجهات تلقائياً عند التوقف عن لمس الشاشة لثوانٍ").setChecked(MidoConfig.autoBlurOnIdle));
+        items.add(UItem.asButton(71, "⏱️ مهلة التغبيش التلقائي: " + MidoConfig.autoBlurSeconds + " ثوانٍ", "اضغط لتحديد عدد الثواني قبل تفعيل التغبيش التلقائي"));
+        items.add(UItem.asShadow("يحمي محتوى محادثاتك من أي شخص بجانبك إذا تركت الهاتف مفتوحاً دون لمس، وتُزال الضبابية بلمسة واحدة."));
+
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
         items.add(UItem.asButton(11, "💬 مجموعة المناقشة والدعم الفني", "اضغط للانضمام لجروب النقاش وحل المشكلات"));
@@ -299,6 +304,28 @@ public class MidoSettingsActivity extends BaseFragment {
             MidoCustomAppIcon.removeCustomIcon(this);
             if (listView != null && listView.adapter != null) {
                 listView.adapter.update(true);
+            }
+        } else if (item.id == 70) {
+            MidoConfig.setAutoBlurOnIdle(!MidoConfig.autoBlurOnIdle);
+            setRowChecked(view, MidoConfig.autoBlurOnIdle);
+        } else if (item.id == 71) {
+            if (getParentActivity() != null) {
+                final int[] choicesSec = new int[]{5, 10, 15, 30, 60};
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle("مهلة التغبيش التلقائي");
+                builder.setItems(new CharSequence[]{
+                        "5 ثوانٍ",
+                        "10 ثوانٍ (موصى به)",
+                        "15 ثانية",
+                        "30 ثانية",
+                        "60 ثانية"
+                }, (d, w) -> {
+                    MidoConfig.setAutoBlurSeconds(choicesSec[w]);
+                    if (listView != null && listView.adapter != null) {
+                        listView.adapter.update(true);
+                    }
+                });
+                showDialog(builder.create());
             }
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);

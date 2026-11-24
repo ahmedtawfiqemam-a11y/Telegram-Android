@@ -43,6 +43,8 @@ public class MidoConfig {
     public static boolean followUnjoinedChannels = true;
     public static boolean freeAppIcons = true;
     public static String customAppIconPath = "";
+    public static boolean autoBlurOnIdle = true;
+    public static int autoBlurSeconds = 10;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -85,6 +87,8 @@ public class MidoConfig {
         followUnjoinedChannels = preferences.getBoolean("followUnjoinedChannels", true);
         freeAppIcons = preferences.getBoolean("freeAppIcons", true);
         customAppIconPath = preferences.getString("customAppIconPath", "");
+        autoBlurOnIdle = preferences.getBoolean("autoBlurOnIdle", true);
+        autoBlurSeconds = preferences.getInt("autoBlurSeconds", 10);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -180,6 +184,21 @@ public class MidoConfig {
             ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0)
                     .edit().putString("customAppIconPath", customAppIconPath).apply();
         }
+    }
+
+    public static void setAutoBlurOnIdle(boolean enabled) {
+        autoBlurOnIdle = enabled;
+        savePreference("autoBlurOnIdle", enabled);
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoAutoBlurSettingsChanged);
+    }
+
+    public static void setAutoBlurSeconds(int seconds) {
+        autoBlurSeconds = Math.max(3, seconds);
+        if (ApplicationLoader.applicationContext != null) {
+            ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0)
+                    .edit().putInt("autoBlurSeconds", autoBlurSeconds).apply();
+        }
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoAutoBlurSettingsChanged);
     }
 
     public static boolean isDevChat(TLRPC.Chat chat) {
