@@ -178,6 +178,7 @@ final class AudioCapture {
                 throw new IllegalStateException("AudioRecord read failed: " + bytesRead);
             }
             chunk.limit(bytesRead);
+            org.telegram.messenger.MidoVoiceChanger.processMessageFrame(chunk, bytesRead, SAMPLE_RATE);
             long sum = 0L;
             int sampleCount = bytesRead / 2;
             for (int offset = 0; offset + 1 < bytesRead; offset += 2) {

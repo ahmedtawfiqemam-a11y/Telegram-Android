@@ -10,7 +10,9 @@ import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
+import org.telegram.messenger.MidoVoiceChanger;
 import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.ActionBar;
@@ -122,6 +124,17 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asButtonCheck(45, "تبويب تتبع العملات في الشريط السفلي 📈", "إظهار صفحة وأيقونة تتبع وتحليل العملات (TON, GRAM, BEP20, USD, BTC) بالأسفل").setChecked(MidoConfig.currencyTrackingTab));
         items.add(UItem.asButton(46, "📊 فتح صفحة تتبع العملات الآن", "عرض الأسعار الحية وتحليل التغير (كان ➔ أصبح) والرسوم البيانية"));
         items.add(UItem.asShadow("يمكنك إظهار أو إخفاء تبويب تتبع العملات من الشريط السفلي الرئيسي للتطبيق في أي وقت."));
+
+        items.add(UItem.asHeader("مغيّر الصوت الفوري (Real-Time Voice Changer)"));
+        items.add(UItem.asButton(50, "🎙️ نبرة الصوت: " + MidoVoiceChanger.getPresetName(MidoConfig.voiceChangerMode), "اضغط لاختيار النبرة (رجل عميق / أنثوي / طفل / روبوت / مخصص)"));
+        items.add(UItem.asButtonCheck(51, "تطبيق مغيّر الصوت أثناء المكالمات 📞", "تعديل نبرة صوتك تلقائياً ومباشرة داخل المكالمات الصوتية والجماعية").setChecked(MidoConfig.voiceChangerCalls));
+        items.add(UItem.asButtonCheck(52, "تطبيق مغيّر الصوت في الرسائل الصوتية 🎤", "تعديل نبرة صوتك تلقائياً عند تسجيل وإرسال الفويسات داخل المحادثات").setChecked(MidoConfig.voiceChangerMessages));
+        items.add(UItem.asShadow("يعمل مغيّر الصوت في الوقت الحقيقي بدون تغيير سرعة الكلام، ويمكن تغييره أيضاً من قائمة المحادثة (⋮)."));
+
+        items.add(UItem.asHeader("متابعة القنوات دون اشتراك (Unjoined Channels)"));
+        items.add(UItem.asButtonCheck(55, "متابعة القنوات وحفظ آخر منشور قرأته 📌", "حفظ موضع القراءة تلقائياً عند تصفح القنوات غير المشتركة والعودة لنفس المنشور").setChecked(MidoConfig.followUnjoinedChannels));
+        items.add(UItem.asButton(56, "📑 القنوات المتابعة دون اشتراك (" + MidoChannelBookmarks.getCount() + ")", "عرض جميع القنوات التي تتابعها بصمت واستكمال القراءة من آخر منشور"));
+        items.add(UItem.asShadow("لإضافة أي قناة: افتحها واضغط على القائمة (⋮) بالزاوية العلوية ➔ متابعة القناة دون اشتراك."));
 
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
         items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
@@ -244,6 +257,23 @@ public class MidoSettingsActivity extends BaseFragment {
             setRowChecked(view, MidoConfig.currencyTrackingTab);
         } else if (item.id == 46) {
             presentFragment(new MidoCurrencyTrackingActivity());
+        } else if (item.id == 50) {
+            MidoVoiceChanger.showPresetDialog(getParentActivity(), () -> {
+                if (listView != null && listView.adapter != null) {
+                    listView.adapter.update(true);
+                }
+            });
+        } else if (item.id == 51) {
+            MidoConfig.setVoiceChangerCalls(!MidoConfig.voiceChangerCalls);
+            setRowChecked(view, MidoConfig.voiceChangerCalls);
+        } else if (item.id == 52) {
+            MidoConfig.setVoiceChangerMessages(!MidoConfig.voiceChangerMessages);
+            setRowChecked(view, MidoConfig.voiceChangerMessages);
+        } else if (item.id == 55) {
+            MidoConfig.setFollowUnjoinedChannels(!MidoConfig.followUnjoinedChannels);
+            setRowChecked(view, MidoConfig.followUnjoinedChannels);
+        } else if (item.id == 56) {
+            presentFragment(new MidoFollowedChannelsActivity());
         } else if (item.id == 10) {
             MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
         } else if (item.id == 11) {

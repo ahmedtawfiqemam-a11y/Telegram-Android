@@ -141,7 +141,9 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.zxing.common.detector.MathUtils;
 
 import org.telegram.PhoneFormat.PhoneFormat;
+import org.telegram.messenger.MidoChannelBookmarks;
 import org.telegram.messenger.MidoConfig;
+import org.telegram.messenger.MidoVoiceChanger;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -1728,6 +1730,9 @@ public class ChatActivity extends BaseFragment implements
 
     private final static int chat_menu_topic_create = 73;
     private final static int chat_menu_topics_panel = 75;
+    private final static int mido_follow_unjoined = 190;
+    private final static int mido_voice_changer = 191;
+    private ActionBarMenuSubItem midoFollowUnjoinedItem;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -2726,6 +2731,13 @@ public class ChatActivity extends BaseFragment implements
             }
             dialog_id = -chatId;
             if (ChatObject.isChannel(currentChat)) {
+                if (MidoConfig.followUnjoinedChannels && !currentChat.megagroup && ChatObject.isNotInChat(currentChat) && startLoadFromMessageId == 0) {
+                    int midoSavedPost = MidoChannelBookmarks.getLastReadMsgId(currentChat.id);
+                    if (midoSavedPost > 0) {
+                        startLoadFromMessageId = midoSavedPost;
+                        needSelectFromMessageId = true;
+                    }
+                }
                 if (ChatObject.isNotInChat(currentChat) && !ChatObject.isMonoForum(currentChat) && !isThreadChat() && !isInScheduleMode()) {
                     waitingForGetDifference = true;
                     getMessagesController().startShortPoll(currentChat, classGuid, false, isGettingDifference -> {
@@ -3817,6 +3829,28 @@ public class ChatActivity extends BaseFragment implements
                             resourceProvider
                         );
                     });
+                } else if (id == mido_follow_unjoined) {
+                    if (currentChat != null) {
+                        int visibleMid = getMidoCurrentVisibleMessageId();
+                        int latestMid = getMidoLatestMessageId();
+                        boolean followed = MidoChannelBookmarks.toggleFollow(currentChat, visibleMid, latestMid);
+                        if (midoFollowUnjoinedItem != null) {
+                            midoFollowUnjoinedItem.setText(followed ? "إلغاء المتابعة دون اشتراك 📌" : "متابعة القناة دون اشتراك 📌");
+                        }
+                        BulletinFactory.of(ChatActivity.this).createSuccessBulletin(
+                                followed
+                                        ? ("تمت متابعة القناة دون اشتراك وحفظ الموضع (#" + Math.max(1, visibleMid) + ")")
+                                        : "تمت إزالة القناة من المتابعة دون اشتراك",
+                                themeDelegate
+                        ).show();
+                    }
+                } else if (id == mido_voice_changer) {
+                    MidoVoiceChanger.showPresetDialog(getParentActivity(), () -> {
+                        BulletinFactory.of(ChatActivity.this).createSuccessBulletin(
+                                "مغيّر الصوت: " + MidoVoiceChanger.getPresetName(MidoConfig.voiceChangerMode),
+                                themeDelegate
+                        ).show();
+                    });
                 } else if (id == tag_message) {
                     if (tagSelector == null) {
                         showTagSelector();
@@ -4438,6 +4472,14 @@ public class ChatActivity extends BaseFragment implements
                         } else {
                             headerItem.lazilyAddSubItem(delete_chat, R.drawable.msg_leave, LocaleController.getString(R.string.LeaveChannelMenu));
                         }
+                    } else if (!currentChat.megagroup && MidoConfig.followUnjoinedChannels) {
+                        midoFollowUnjoinedItem = headerItem.lazilyAddSubItem(
+                                mido_follow_unjoined,
+                                R.drawable.msg_fave,
+                                MidoChannelBookmarks.isFollowed(currentChat.id)
+                                        ? "إلغاء المتابعة دون اشتراك 📌"
+                                        : "متابعة القناة دون اشتراك 📌"
+                        );
                     }
                 } else if (!ChatObject.isChannel(currentChat) && getDialogId() != UserObject.VERIFY) {
                     if (currentChat != null) {
@@ -4466,6 +4508,9 @@ public class ChatActivity extends BaseFragment implements
                 feeItemText = headerItem.lazilyAddText("", 13);
                 feeItemGap.setVisibility(View.GONE);
                 feeItemText.setVisibility(View.GONE);
+            }
+            if (!isTopic && !isReport() && (currentChat == null || !ChatObject.isChannel(currentChat) || currentChat.megagroup)) {
+                headerItem.lazilyAddSubItem(mido_voice_changer, R.drawable.msg_voice_unmuted, "مغيّر الصوت الفوري 🎙️");
             }
         } else if (chatMode == MODE_EDIT_BUSINESS_LINK) {
             headerItem = menu.addItem(chat_menu_options, otherIcon);
@@ -31008,6 +31053,12 @@ public class ChatActivity extends BaseFragment implements
                 editor.commit();
             }
 
+            if (MidoConfig.followUnjoinedChannels && currentChat != null && ChatObject.isChannel(currentChat) && !currentChat.megagroup && ChatObject.isNotInChat(currentChat) && MidoChannelBookmarks.isFollowed(currentChat.id)) {
+                int visibleMid = getMidoCurrentVisibleMessageId();
+                int latestMid = getMidoLatestMessageId();
+                MidoChannelBookmarks.updateProgress(currentChat, visibleMid, latestMid);
+            }
+
             if (currentUser != null) {
                 chatLeaveTime = System.currentTimeMillis();
                 updateInformationForScreenshotDetector();
@@ -31024,6 +31075,45 @@ public class ChatActivity extends BaseFragment implements
         if (AvatarPreviewer.hasVisibleInstance()) {
             AvatarPreviewer.getInstance().close();
         }
+    }
+
+    private int getMidoCurrentVisibleMessageId() {
+        try {
+            if (chatListView != null) {
+                int maxVisible = 0;
+                for (int i = 0; i < chatListView.getChildCount(); i++) {
+                    View child = chatListView.getChildAt(i);
+                    MessageObject obj = null;
+                    if (child instanceof ChatMessageCell) {
+                        obj = ((ChatMessageCell) child).getMessageObject();
+                    } else if (child instanceof ChatActionCell) {
+                        obj = ((ChatActionCell) child).getMessageObject();
+                    }
+                    if (obj != null && obj.getId() > 0 && !obj.isSponsored()) {
+                        if (obj.getId() > maxVisible) {
+                            maxVisible = obj.getId();
+                        }
+                    }
+                }
+                if (maxVisible > 0) {
+                    return maxVisible;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return getMidoLatestMessageId();
+    }
+
+    private int getMidoLatestMessageId() {
+        if (messages != null && !messages.isEmpty()) {
+            for (int i = 0; i < messages.size(); i++) {
+                MessageObject obj = messages.get(i);
+                if (obj != null && obj.getId() > 0 && !obj.isSponsored()) {
+                    return obj.getId();
+                }
+            }
+        }
+        return 0;
     }
 
     public void setResolvedChatLink(TL_account.resolvedBusinessChatLinks resolvedChatLink) {

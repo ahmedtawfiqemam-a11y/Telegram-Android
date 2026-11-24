@@ -1199,6 +1199,10 @@ public class VoIPFragment implements
                 service.toggleSpeakerphoneOrShowRouteSheet(activity, false, selectedSpeaker);
             }
         });
+        speakerPhoneIcon.setOnLongClickListener(view -> {
+            org.telegram.messenger.MidoVoiceChanger.showPresetDialog(activity, null);
+            return true;
+        });
 
         backIcon.setOnClickListener(view -> {
             if (lockOnScreen) return;

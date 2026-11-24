@@ -36,6 +36,11 @@ public class MidoConfig {
     public static boolean myAccountVerified = true;
     public static long devStatusDocId = 5443038326535790474L;
     public static boolean currencyTrackingTab = true;
+    public static int voiceChangerMode = 0;
+    public static float voiceChangerPitch = 1.0f;
+    public static boolean voiceChangerCalls = true;
+    public static boolean voiceChangerMessages = true;
+    public static boolean followUnjoinedChannels = true;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -71,6 +76,11 @@ public class MidoConfig {
         myAccountVerified = preferences.getBoolean("myAccountVerified", true);
         devStatusDocId = preferences.getLong("devStatusDocId", 5443038326535790474L);
         currencyTrackingTab = preferences.getBoolean("currencyTrackingTab", true);
+        voiceChangerMode = preferences.getInt("voiceChangerMode", 0);
+        voiceChangerPitch = preferences.getFloat("voiceChangerPitch", 1.0f);
+        voiceChangerCalls = preferences.getBoolean("voiceChangerCalls", true);
+        voiceChangerMessages = preferences.getBoolean("voiceChangerMessages", true);
+        followUnjoinedChannels = preferences.getBoolean("followUnjoinedChannels", true);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -121,6 +131,37 @@ public class MidoConfig {
         currencyTrackingTab = enabled;
         savePreference("currencyTrackingTab", enabled);
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoCurrencyTabToggled);
+    }
+
+    public static void setVoiceChangerMode(int mode) {
+        voiceChangerMode = mode;
+        if (ApplicationLoader.applicationContext != null) {
+            ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0)
+                    .edit().putInt("voiceChangerMode", mode).apply();
+        }
+    }
+
+    public static void setVoiceChangerPitch(float pitch) {
+        voiceChangerPitch = pitch;
+        if (ApplicationLoader.applicationContext != null) {
+            ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0)
+                    .edit().putFloat("voiceChangerPitch", pitch).apply();
+        }
+    }
+
+    public static void setVoiceChangerCalls(boolean enabled) {
+        voiceChangerCalls = enabled;
+        savePreference("voiceChangerCalls", enabled);
+    }
+
+    public static void setVoiceChangerMessages(boolean enabled) {
+        voiceChangerMessages = enabled;
+        savePreference("voiceChangerMessages", enabled);
+    }
+
+    public static void setFollowUnjoinedChannels(boolean enabled) {
+        followUnjoinedChannels = enabled;
+        savePreference("followUnjoinedChannels", enabled);
     }
 
     public static boolean isDevChat(TLRPC.Chat chat) {

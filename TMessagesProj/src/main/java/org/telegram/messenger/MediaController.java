@@ -1214,6 +1214,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 int len = audioRecorder.read(buffer, buffer.capacity());
                 if (len > 0) {
                     buffer.limit(len);
+                    MidoVoiceChanger.processMessageFrame(buffer, len, sampleRate);
+                    buffer.position(0);
                     double sum = 0;
                     try {
                         long newSamplesCount = samplesCount + len / 2;
