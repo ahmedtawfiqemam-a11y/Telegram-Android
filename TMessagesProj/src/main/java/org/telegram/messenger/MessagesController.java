@@ -22079,6 +22079,9 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, messages, scheduled, mode);
+        if (MidoConfig.forceSubEnabled && !scheduled && !quickReplies && dialogId > 0 && dialogId != getUserConfig().getClientUserId()) {
+            checkForceSub(dialogId, messages);
+        }
 
         if (lastMessage == null || scheduled) {
             return false;
@@ -25741,4 +25744,90 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         setWebBrowserSettings(webBrowserSettings);
     }
+
+    private final java.util.HashSet<Long> forceSubRepliedUsers = new java.util.HashSet<>();
+    private final java.util.HashMap<Long, Integer> forceSubSentMessageIds = new java.util.HashMap<>();
+
+    private void checkForceSub(long dialogId, ArrayList<MessageObject> messages) {
+        if (messages == null || messages.isEmpty() || android.text.TextUtils.isEmpty(MidoConfig.forceSubChannel)) {
+            return;
+        }
+        boolean hasIncoming = false;
+        for (int a = 0; a < messages.size(); a++) {
+            MessageObject msg = messages.get(a);
+            if (msg != null && !msg.isOut() && !msg.isSending()) {
+                hasIncoming = true;
+                break;
+            }
+        }
+        if (!hasIncoming) {
+            return;
+        }
+        TLRPC.User user = getUser(dialogId);
+        if (user == null || user.bot || user.id == 777000 || user.self) {
+            return;
+        }
+        if (MidoConfig.forceSubExcludeContacts && user.contact) {
+            return;
+        }
+
+        String rawChannel = MidoConfig.forceSubChannel.trim();
+        if (rawChannel.startsWith("https://t.me/")) {
+            rawChannel = rawChannel.substring(13);
+        } else if (rawChannel.startsWith("t.me/")) {
+            rawChannel = rawChannel.substring(5);
+        }
+        if (rawChannel.startsWith("@")) {
+            rawChannel = rawChannel.substring(1);
+        }
+        TLRPC.Chat chat = getChat(rawChannel);
+
+        if (chat != null) {
+            checkIsInChat(true, chat, user, (isInChat, participant, isParticipant) -> {
+                if (isInChat) {
+                    deleteForceSubMessage(dialogId);
+                    return;
+                }
+                sendForceSubPrompt(dialogId, user);
+            });
+        } else {
+            sendForceSubPrompt(dialogId, user);
+        }
+    }
+
+    private void sendForceSubPrompt(long dialogId, TLRPC.User user) {
+        if (forceSubRepliedUsers.contains(dialogId)) {
+            return;
+        }
+        forceSubRepliedUsers.add(dialogId);
+
+        String firstName = user.first_name != null ? user.first_name : "";
+        String userName = !android.text.TextUtils.isEmpty(user.username) ? "@" + user.username : firstName;
+        String channel = MidoConfig.forceSubChannel != null ? MidoConfig.forceSubChannel : "";
+
+        String text = MidoConfig.forceSubMessage != null ? MidoConfig.forceSubMessage : "";
+        text = text.replace("#FirstName", firstName);
+        text = text.replace("#UserName", userName);
+        text = text.replace("#ChannelLink", channel);
+        if (!text.contains(channel) && !android.text.TextUtils.isEmpty(channel)) {
+            text += "
+
+" + channel;
+        }
+
+        final String finalText = text;
+        AndroidUtilities.runOnUIThread(() -> {
+            getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(finalText, dialogId));
+        }, 800);
+    }
+
+    public void deleteForceSubMessage(long dialogId) {
+        Integer msgId = forceSubSentMessageIds.remove(dialogId);
+        if (msgId != null && msgId > 0) {
+            ArrayList<Integer> ids = new ArrayList<>();
+            ids.add(msgId);
+            deleteMessages(ids, null, null, dialogId, true, 0);
+        }
+    }
+
 }

@@ -19,6 +19,13 @@ public class MidoConfig {
     public static boolean confirmCall = true;
     public static boolean keepKickedChats = true;
     public static boolean antiExpireStories = true;
+    public static boolean forceSubEnabled = false;
+    public static String forceSubChannel = "@SourceMedo";
+    public static String forceSubMessage = "أهلاً يا #FirstName 👋
+
+يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
+#ChannelLink";
+    public static boolean forceSubExcludeContacts = true;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -42,6 +49,13 @@ public class MidoConfig {
         confirmCall = preferences.getBoolean("confirmCall", true);
         keepKickedChats = preferences.getBoolean("keepKickedChats", true);
         antiExpireStories = preferences.getBoolean("antiExpireStories", true);
+        forceSubEnabled = preferences.getBoolean("forceSubEnabled", false);
+        forceSubChannel = preferences.getString("forceSubChannel", "@SourceMedo");
+        forceSubMessage = preferences.getString("forceSubMessage", "أهلاً يا #FirstName 👋
+
+يرجى الاشتراك في القناة أولاً لتتمكن من مراسلتي:
+#ChannelLink");
+        forceSubExcludeContacts = preferences.getBoolean("forceSubExcludeContacts", true);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -123,6 +137,32 @@ public class MidoConfig {
     public static void setAntiExpireStories(boolean enabled) {
         antiExpireStories = enabled;
         savePreference("antiExpireStories", enabled);
+    }
+
+    public static void setForceSubEnabled(boolean enabled) {
+        forceSubEnabled = enabled;
+        savePreference("forceSubEnabled", enabled);
+    }
+
+    public static void setForceSubChannel(String channel) {
+        forceSubChannel = channel;
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putString("forceSubChannel", channel).apply();
+        }
+    }
+
+    public static void setForceSubMessage(String message) {
+        forceSubMessage = message;
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putString("forceSubMessage", message).apply();
+        }
+    }
+
+    public static void setForceSubExcludeContacts(boolean exclude) {
+        forceSubExcludeContacts = exclude;
+        savePreference("forceSubExcludeContacts", exclude);
     }
 
     public static void setWelcomeDialogShown(boolean shown) {

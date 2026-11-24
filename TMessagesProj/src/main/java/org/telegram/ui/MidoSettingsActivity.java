@@ -1,14 +1,18 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.TextCheckCell;
@@ -48,6 +52,18 @@ public class MidoSettingsActivity extends BaseFragment {
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
+        items.add(UItem.asHeader("الاشتراك الإجباري في الخاص (Force Subscription)"));
+        items.add(UItem.asCheck(30, "تفعيل الاشتراك الإجباري 📢 (Force Subscribe)")
+                .setChecked(MidoConfig.forceSubEnabled)
+                .setValue("إلزام أي شخص يراسلك خاص بالاشتراك في قناتك أو مجموعتك أولاً"));
+
+        items.add(UItem.asButton(31, "🔗 قناة/جروب الاشتراك: " + MidoConfig.forceSubChannel, "اضغط لتعديل رابط القناة أو المجموعة التي تريد إجبارهم عليها"));
+        items.add(UItem.asButton(32, "📝 تعديل رسالة الاشتراك الإجباري", "تخصيص الرسالة مع دعم #FirstName و #UserName و #ChannelLink"));
+        items.add(UItem.asCheck(33, "استثناء جهات الاتصال المحفوظة 👥 (Exceptions)")
+                .setChecked(MidoConfig.forceSubExcludeContacts)
+                .setValue("عدم طلب الاشتراك من أصدقائك وجهات الاتصال المسجلة في هاتفك"));
+        items.add(UItem.asShadow("عند تفعيل الميزة، سيرسل التطبيق رسالة الاشتراك تلقائياً لأي شخص يراسلك خاص، وفور انضمامه تُمسح الرسالة ويتمكن من مراسلتك بحرية."));
+
         items.add(UItem.asHeader("فك القيود وحماية الوسائط (Restricted Content)"));
         items.add(UItem.asCheck(20, "تخطي حظر الحفظ والتحميل 🔓 (Save Restricted)")
                 .setChecked(MidoConfig.saveRestrictedContent)
@@ -126,7 +142,56 @@ public class MidoSettingsActivity extends BaseFragment {
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == 20) {
+        if (item.id == 30) {
+            MidoConfig.setForceSubEnabled(!MidoConfig.forceSubEnabled);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.forceSubEnabled);
+            }
+        } else if (item.id == 31) {
+            if (getParentActivity() == null) return;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("قناة أو مجموعة الاشتراك الإجباري");
+            final EditText editText = new EditText(getParentActivity());
+            editText.setText(MidoConfig.forceSubChannel);
+            editText.setHint("@SourceMedo أو رابط القناة/الجروب");
+            builder.setView(editText);
+            builder.setPositiveButton("حفظ", (d, w) -> {
+                String val = editText.getText().toString().trim();
+                if (!TextUtils.isEmpty(val)) {
+                    MidoConfig.setForceSubChannel(val);
+                    if (listView != null && listView.adapter != null) {
+                        listView.adapter.update(true);
+                    }
+                }
+            });
+            builder.setNegativeButton("إلغاء", null);
+            showDialog(builder.create());
+        } else if (item.id == 32) {
+            if (getParentActivity() == null) return;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("رسالة الاشتراك الإجباري");
+            builder.setMessage("يمكنك استخدام:
+#FirstName = الاسم الأول للمرسل
+#UserName = يوزر المرسل
+#ChannelLink = رابط القناة أو الجروب");
+            final EditText editText = new EditText(getParentActivity());
+            editText.setText(MidoConfig.forceSubMessage);
+            editText.setMinLines(3);
+            builder.setView(editText);
+            builder.setPositiveButton("حفظ", (d, w) -> {
+                String val = editText.getText().toString().trim();
+                if (!TextUtils.isEmpty(val)) {
+                    MidoConfig.setForceSubMessage(val);
+                }
+            });
+            builder.setNegativeButton("إلغاء", null);
+            showDialog(builder.create());
+        } else if (item.id == 33) {
+            MidoConfig.setForceSubExcludeContacts(!MidoConfig.forceSubExcludeContacts);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.forceSubExcludeContacts);
+            }
+        } else if (item.id == 20) {
             MidoConfig.setSaveRestrictedContent(!MidoConfig.saveRestrictedContent);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.saveRestrictedContent);
