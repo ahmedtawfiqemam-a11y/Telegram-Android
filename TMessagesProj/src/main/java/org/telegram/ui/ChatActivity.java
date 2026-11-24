@@ -1737,9 +1737,9 @@ public class ChatActivity extends BaseFragment implements
     private final static int mido_voice_changer = 191;
     private final static int mido_memory_card = 192;
     private final static int mido_anti_oops = 193;
-    private ActionBarMenuSubItem midoFollowUnjoinedItem;
-    private ActionBarMenuSubItem midoMemoryCardItem;
-    private ActionBarMenuSubItem midoAntiOopsItem;
+    private ActionBarMenuItem.Item midoFollowUnjoinedItem;
+    private ActionBarMenuItem.Item midoMemoryCardItem;
+    private ActionBarMenuItem.Item midoAntiOopsItem;
     private boolean midoBypassOopsReaction = false;
 
     private final static int id_chat_compose_panel = 1000;
