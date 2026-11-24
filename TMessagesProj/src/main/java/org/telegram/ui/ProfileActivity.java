@@ -159,6 +159,7 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MidoConfig;
+import org.telegram.ui.Components.MidoMajorBadgeDrawable;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
@@ -11827,7 +11828,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     nameTextView.setRightDrawable2(null);
                     nameTextViewRightDrawable2ContentDescription = null;
                 }
-                if (user != null && !MessagesController.isSupportUser(user) && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
+                if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+                    nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
+                } else if (user != null && !MessagesController.isSupportUser(user) && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
                     rightIconIsStatus = true;
                     nameTextView.setRightDrawable(getEmojiStatusDrawable(user.emoji_status, true, true));
                     nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrPremium);
@@ -12092,7 +12096,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     nameTextView.setRightDrawable2(null);
                     nameTextViewRightDrawableContentDescription = null;
                 }
-                if (DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
+                if (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
+                    nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    nameTextView.setRightDrawableOutside(true);
+                    nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
+                } else if (DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
                     nameTextView.setRightDrawable(getEmojiStatusDrawable(chat.emoji_status, true, false));
                     nameTextView.setRightDrawableOutside(true);
                     nameTextViewRightDrawableContentDescription = null;

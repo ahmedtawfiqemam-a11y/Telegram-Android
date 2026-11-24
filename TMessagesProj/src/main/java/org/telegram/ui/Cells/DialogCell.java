@@ -78,6 +78,8 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
+import org.telegram.ui.Components.MidoMajorBadgeDrawable;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
@@ -1531,6 +1533,13 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         } else if (chat.fake) {
                             drawScam = 2;
                             Theme.dialogs_fakeDrawable.checkText();
+                        } else if (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
+                            drawVerified = false;
+                            drawPremium = true;
+                            nameLayoutEllipsizeByGradient = true;
+                            emojiStatus.center = LocaleController.isRTL;
+                            emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            emojiStatus.setParticles(false, false);
                         } else if (DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
                             drawPremium = true;
                             nameLayoutEllipsizeByGradient = true;
@@ -1553,18 +1562,27 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawVerified = !forbidVerified && user.verified;
                             drawBotVerified = !forbidVerified && !UserObject.isUserSelf(user) && user.bot_verification_icon != 0;
                         }
-                        drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user) && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
-                        if (drawPremium) {
-                            Long emojiStatusId = UserObject.getEmojiStatusDocumentId(user);
+                        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+                            drawVerified = false;
+                            drawPremium = true;
+                            nameLayoutEllipsizeByGradient = true;
                             emojiStatus.center = LocaleController.isRTL;
-                            if (emojiStatusId != null) {
-                                nameLayoutEllipsizeByGradient = true;
-                                emojiStatus.set(emojiStatusId, false);
-                                emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), false);
-                            } else {
-                                nameLayoutEllipsizeByGradient = true;
-                                emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, false);
-                                emojiStatus.setParticles(false, false);
+                            emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            emojiStatus.setParticles(false, false);
+                        } else {
+                            drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user) && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
+                            if (drawPremium) {
+                                Long emojiStatusId = UserObject.getEmojiStatusDocumentId(user);
+                                emojiStatus.center = LocaleController.isRTL;
+                                if (emojiStatusId != null) {
+                                    nameLayoutEllipsizeByGradient = true;
+                                    emojiStatus.set(emojiStatusId, false);
+                                    emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), false);
+                                } else {
+                                    nameLayoutEllipsizeByGradient = true;
+                                    emojiStatus.set(PremiumGradient.getInstance().premiumStarDrawableMini, false);
+                                    emojiStatus.setParticles(false, false);
+                                }
                             }
                         }
                     }
@@ -3411,7 +3429,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     long dialogBotVerificationIcon = 0;
                     if (user != null) {
                         user = MessagesController.getInstance(currentAccount).getUser(user.id);
-                        if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
+                        if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
+                            nameLayoutEllipsizeByGradient = true;
+                            emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            emojiStatus.setParticles(false, animated);
+                        } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
                             nameLayoutEllipsizeByGradient = true;
                             emojiStatus.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
                             emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(user.emoji_status), animated);
@@ -3425,7 +3447,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     }
                     if (chat != null) {
                         chat = MessagesController.getInstance(currentAccount).getChat(chat.id);
-                        if (chat != null && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0)  {
+                        if (chat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
+                            nameLayoutEllipsizeByGradient = true;
+                            emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            emojiStatus.setParticles(false, animated);
+                        } else if (chat != null && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0)  {
                             nameLayoutEllipsizeByGradient = true;
                             emojiStatus.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), animated);
                             emojiStatus.setParticles(DialogObject.isEmojiStatusCollectible(chat.emoji_status), animated);

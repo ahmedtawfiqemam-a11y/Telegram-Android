@@ -47,6 +47,7 @@ import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -944,6 +945,11 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         if (value != null) {
             value = Emoji.replaceEmoji(value, titleTextView.getPaint().getFontMetricsInt(), false);
         }
+        boolean midoMajor = MidoConfig.devBadgeEnabled && parentFragment != null &&
+                (MidoConfig.isDevUser(parentFragment.getCurrentUser()) || MidoConfig.isDevChat(parentFragment.getCurrentChat()));
+        if (midoMajor) {
+            verified = true;
+        }
         titleTextView.setText(value);
         rightDrawableIsScam = false;
         if (scam || fake) {
@@ -970,7 +976,12 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             rightDrawableIsScamOrVerified = false;
             rightDrawable2ContentDescription = null;
         }
-        if (premium || DialogObject.getEmojiStatusDocumentId(emojiStatus) != 0) {
+        if (midoMajor) {
+            emojiStatusDrawable.set(new MidoMajorBadgeDrawable(22), animated);
+            titleTextView.setRightDrawable(emojiStatusDrawable);
+            rightDrawableIsScamOrVerified = false;
+            rightDrawableContentDescription = getString(R.string.AccDescrVerified);
+        } else if (premium || DialogObject.getEmojiStatusDocumentId(emojiStatus) != 0) {
             if (titleTextView.getRightDrawable() instanceof AnimatedEmojiDrawable.WrapSizeDrawable &&
                 ((AnimatedEmojiDrawable.WrapSizeDrawable) titleTextView.getRightDrawable()).getDrawable() instanceof AnimatedEmojiDrawable) {
                 ((AnimatedEmojiDrawable) ((AnimatedEmojiDrawable.WrapSizeDrawable) titleTextView.getRightDrawable()).getDrawable()).removeView(titleTextView);

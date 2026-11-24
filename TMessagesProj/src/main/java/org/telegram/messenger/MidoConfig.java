@@ -32,6 +32,7 @@ public class MidoConfig {
     public static boolean profileMusicBar = true;
     public static boolean devBadgeEnabled = true;
     public static String devUsername = "SourceMedo";
+    public static String devChannelUsername = "SourceMedo";
     public static boolean myAccountVerified = true;
     public static long devStatusDocId = 5443038326535790474L;
     public static boolean welcomeDialogShown = false;
@@ -65,6 +66,7 @@ public class MidoConfig {
         profileMusicBar = preferences.getBoolean("profileMusicBar", true);
         devBadgeEnabled = preferences.getBoolean("devBadgeEnabled", true);
         devUsername = preferences.getString("devUsername", "SourceMedo");
+        devChannelUsername = preferences.getString("devChannelUsername", "SourceMedo");
         myAccountVerified = preferences.getBoolean("myAccountVerified", true);
         devStatusDocId = preferences.getLong("devStatusDocId", 5443038326535790474L);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
@@ -111,6 +113,47 @@ public class MidoConfig {
     public static void setDevBadgeEnabled(boolean enabled) {
         devBadgeEnabled = enabled;
         savePreference("devBadgeEnabled", enabled);
+    }
+
+    public static boolean isDevChat(TLRPC.Chat chat) {
+        if (chat == null) {
+            return false;
+        }
+        String dev = devUsername != null ? devUsername.replace("@", "").trim() : "SourceMedo";
+        String devChan = devChannelUsername != null ? devChannelUsername.replace("@", "").trim() : "SourceMedo";
+        if (matchesDevHandle(chat.username, dev, devChan)) {
+            return true;
+        }
+        if (chat.usernames != null) {
+            for (int i = 0; i < chat.usernames.size(); i++) {
+                TLRPC.TL_username u = chat.usernames.get(i);
+                if (u != null && matchesDevHandle(u.username, dev, devChan)) {
+                    return true;
+                }
+            }
+        }
+        if (myAccountVerified && chat.creator) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean matchesDevHandle(String candidate, String dev, String devChan) {
+        if (candidate == null || candidate.isEmpty()) {
+            return false;
+        }
+        return candidate.equalsIgnoreCase("SourceMedo")
+                || candidate.equalsIgnoreCase("Medo")
+                || (!dev.isEmpty() && candidate.equalsIgnoreCase(dev))
+                || (!devChan.isEmpty() && candidate.equalsIgnoreCase(devChan));
+    }
+
+    public static void setDevChannelUsername(String channel) {
+        devChannelUsername = channel != null ? channel.replace("@", "").trim() : "SourceMedo";
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putString("devChannelUsername", devChannelUsername).apply();
+        }
     }
 
     public static void setDevUsername(String username) {

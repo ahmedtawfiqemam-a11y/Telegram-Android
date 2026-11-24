@@ -6718,24 +6718,12 @@ public class MessagesController extends BaseController implements NotificationCe
             TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
             if (currentUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(currentUser)) {
                 currentUser.verified = true;
-                if (currentUser.emoji_status == null) {
-                    TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
-                    status.flags = 0;
-                    status.document_id = MidoConfig.devStatusDocId;
-                    currentUser.emoji_status = status;
-                }
             }
             return currentUser;
         }
         TLRPC.User user = users.get(id);
         if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
             user.verified = true;
-            if (user.emoji_status == null) {
-                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
-                status.flags = 0;
-                status.document_id = MidoConfig.devStatusDocId;
-                user.emoji_status = status;
-            }
         }
         return user;
     }
@@ -6772,7 +6760,11 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public TLRPC.Chat getChat(Long id) {
-        return chats.get(id);
+        TLRPC.Chat chat = chats.get(id);
+        if (chat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
+            chat.verified = true;
+        }
+        return chat;
     }
 
     public TLRPC.EncryptedChat getEncryptedChat(Integer id) {
@@ -6863,23 +6855,11 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         if (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
             user.verified = true;
-            if (user.emoji_status == null) {
-                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
-                status.flags = 0;
-                status.document_id = MidoConfig.devStatusDocId;
-                user.emoji_status = status;
-            }
         }
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
         if (oldUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(oldUser)) {
             oldUser.verified = true;
-            if (oldUser.emoji_status == null) {
-                TLRPC.TL_emojiStatus status = new TLRPC.TL_emojiStatus();
-                status.flags = 0;
-                status.document_id = MidoConfig.devStatusDocId;
-                oldUser.emoji_status = status;
-            }
         }
         if (oldUser == user && !force) {
             return false;
@@ -7014,7 +6994,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (chat == null) {
             return;
         }
+        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
+            chat.verified = true;
+        }
         TLRPC.Chat oldChat = chats.get(chat.id);
+        if (oldChat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(oldChat)) {
+            oldChat.verified = true;
+        }
         if (oldChat == chat) {
             return;
         }

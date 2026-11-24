@@ -103,11 +103,12 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asHeader("المظهر وشريط الموسيقى وشارة التوثيق (exteraGram Features)"));
         items.add(UItem.asButtonCheck(40, "شريط الموسيقى في البروفايل 🎵 (Profile Music Bar)", "عرض شريط الموسيقى الزجاجي الأنيق والتحكم بالصوتيات داخل الملف الشخصي مثل exteraGram").setChecked(MidoConfig.profileMusicBar));
 
-        items.add(UItem.asButtonCheck(41, "شارة التوثيق الزرقاء ونجمة المطور ⭐ (Dev Verified)", "إظهار شارة التوثيق الرسمية ونجمة المطور لحسابك ولحساب المطور @SourceMedo لدى كل مستخدمي النسخة").setChecked(MidoConfig.devBadgeEnabled));
+        items.add(UItem.asButtonCheck(41, "شعار Major وشارة التوثيق للمطور وقنواته ⭐", "إظهار شعار Major الذهبي الرسمي بدلاً من النجمة + التوثيق على المطور @SourceMedo وقنواته لكل مستخدمي النسخة").setChecked(MidoConfig.devBadgeEnabled));
 
-        items.add(UItem.asButtonCheck(42, "توثيق حسابي الشخصي أيضاً 👑 (Verify My Account)", "إظهار شارة التوثيق الدائمة بجانب اسم حسابك في كل مكان داخل التطبيق").setChecked(MidoConfig.myAccountVerified));
+        items.add(UItem.asButtonCheck(42, "شعار Major لحسابي وقنواتي أيضاً 👑", "إظهار شعار Major وشارة التوثيق بجانب اسم حسابك والقنوات التي أنشأتها").setChecked(MidoConfig.myAccountVerified));
 
         items.add(UItem.asButton(43, "✏️ تخصيص يوزر المطور الموثق: @" + MidoConfig.devUsername, "اضغط لتعديل معرف التليجرام الخاص بالمطور الموثق"));
+        items.add(UItem.asButton(44, "📢 تخصيص قناة المطور الموثقة: @" + MidoConfig.devChannelUsername, "اضغط لتعديل يوزر قناة المطور التي تحمل شعار Major"));
         items.add(UItem.asShadow("تمنحك هذه الميزات مظهراً مميزاً وشريط موسيقى تفاعلي زجاجي مستوحى من exteraGram وشعار موثق حصري."));
 
         items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
@@ -212,6 +213,24 @@ public class MidoSettingsActivity extends BaseFragment {
                 String val = editText.getText().toString().trim().replace("@", "");
                 if (!TextUtils.isEmpty(val)) {
                     MidoConfig.setDevUsername(val);
+                    if (listView != null && listView.adapter != null) {
+                        listView.adapter.update(true);
+                    }
+                }
+            });
+            builder.setNegativeButton("إلغاء", null);
+            showDialog(builder.create());
+        } else if (item.id == 44) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("معرف قناة المطور الموثقة");
+            final EditText editText = new EditText(getParentActivity());
+            editText.setText(MidoConfig.devChannelUsername);
+            editText.setSelection(editText.getText().length());
+            builder.setView(editText);
+            builder.setPositiveButton("حفظ", (dialog, which) -> {
+                String val = editText.getText().toString().trim().replace("@", "");
+                if (!TextUtils.isEmpty(val)) {
+                    MidoConfig.setDevChannelUsername(val);
                     if (listView != null && listView.adapter != null) {
                         listView.adapter.update(true);
                     }
