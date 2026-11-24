@@ -23521,6 +23521,11 @@ public class ChatActivity extends BaseFragment implements
         } else if (id == NotificationCenter.chatInfoCantLoad) {
             long chatId = (Long) args[0];
             if (currentChat != null && currentChat.id == chatId) {
+                if (MidoConfig.keepKickedChats) {
+                    loading = false;
+                    showProgressView(false);
+                    return;
+                }
                 int reason = (Integer) args[1];
                 if (getParentActivity() == null || closeChatDialog != null) {
                     return;

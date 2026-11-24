@@ -17,6 +17,8 @@ public class MidoConfig {
     public static boolean forwardWithoutQuote = true;
     public static boolean showEditHistory = true;
     public static boolean confirmCall = true;
+    public static boolean keepKickedChats = true;
+    public static boolean antiExpireStories = true;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -38,6 +40,8 @@ public class MidoConfig {
         forwardWithoutQuote = preferences.getBoolean("forwardWithoutQuote", true);
         showEditHistory = preferences.getBoolean("showEditHistory", true);
         confirmCall = preferences.getBoolean("confirmCall", true);
+        keepKickedChats = preferences.getBoolean("keepKickedChats", true);
+        antiExpireStories = preferences.getBoolean("antiExpireStories", true);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -109,6 +113,16 @@ public class MidoConfig {
     public static void setConfirmCall(boolean enabled) {
         confirmCall = enabled;
         savePreference("confirmCall", enabled);
+    }
+
+    public static void setKeepKickedChats(boolean enabled) {
+        keepKickedChats = enabled;
+        savePreference("keepKickedChats", enabled);
+    }
+
+    public static void setAntiExpireStories(boolean enabled) {
+        antiExpireStories = enabled;
+        savePreference("antiExpireStories", enabled);
     }
 
     public static void setWelcomeDialogShown(boolean shown) {

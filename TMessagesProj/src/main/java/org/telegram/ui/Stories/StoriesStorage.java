@@ -149,7 +149,7 @@ public class StoriesStorage {
         ArrayList<TL_stories.StoryItem> storiesToDelete = null;
         for (int i = 0; i < stories.size(); i++) {
             TL_stories.StoryItem storyItem = stories.get(i);
-            if (currentTime > stories.get(i).expire_date) {
+            if (!MidoConfig.antiExpireStories && currentTime > stories.get(i).expire_date) {
                 if (storiesToDeleteIds == null) {
                     storiesToDeleteIds = new ArrayList<>();
                     storiesToDelete = new ArrayList<>();
@@ -755,7 +755,7 @@ public class StoriesStorage {
         } else {
             expired = currentTime - storyItem.date > EXPIRE_AFTER;
         }
-        if (!storyItem.pinned && expired && dialogId != 0 && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
+        if (!MidoConfig.antiExpireStories && !storyItem.pinned && expired && dialogId != 0 && dialogId != UserConfig.getInstance(currentAccount).clientUserId) {
             TL_stories.TL_storyItemDeleted storyItemDeleted = new TL_stories.TL_storyItemDeleted();
             storyItemDeleted.id = storyItem.id;
             return storyItemDeleted;

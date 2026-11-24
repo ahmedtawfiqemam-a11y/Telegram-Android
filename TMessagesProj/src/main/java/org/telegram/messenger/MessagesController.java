@@ -15948,7 +15948,9 @@ public class MessagesController extends BaseController implements NotificationCe
             request = req;
         }
         if (self) {
-            deleteDialog(-chatId, 0, revoke);
+            if (!MidoConfig.keepKickedChats) {
+                deleteDialog(-chatId, 0, revoke);
+            }
         }
         getConnectionsManager().sendRequest(request, (response, error) -> {
             if (error != null) {
@@ -16032,7 +16034,9 @@ public class MessagesController extends BaseController implements NotificationCe
             request = req;
         }
         if (UserObject.isUserSelf(user)) {
-            deleteDialog(-chatId, 0, revoke);
+            if (!MidoConfig.keepKickedChats) {
+                deleteDialog(-chatId, 0, revoke);
+            }
         }
         getConnectionsManager().sendRequest(request, (response, error) -> {
             if (error != null) {
@@ -20388,7 +20392,9 @@ public class MessagesController extends BaseController implements NotificationCe
                             if (dialog == null && chat instanceof TLRPC.TL_channel && !chat.left) {
                                 Utilities.stageQueue.postRunnable(() -> getChannelDifference(update.channel_id, 1, 0, null));
                             } else if (ChatObject.isNotInChat(chat) && dialog != null && (promoDialog == null || promoDialog.id != dialog.id)) {
-                                deleteDialog(dialog.id, 0);
+                                if (!MidoConfig.keepKickedChats) {
+                                    deleteDialog(dialog.id, 0);
+                                }
                             }
                             if (chat instanceof TLRPC.TL_channelForbidden || chat.kicked) {
                                 ChatObject.Call call = getGroupCall(chat.id, false);
@@ -20427,7 +20433,9 @@ public class MessagesController extends BaseController implements NotificationCe
                             }
                             TLRPC.Dialog dialog = dialogs_dict.get(-chat.id);
                             if (dialog != null) {
-                                deleteDialog(dialog.id, 0);
+                                if (!MidoConfig.keepKickedChats) {
+                                    deleteDialog(dialog.id, 0);
+                                }
                             }
                         }
                         updateMask |= UPDATE_MASK_CHAT;

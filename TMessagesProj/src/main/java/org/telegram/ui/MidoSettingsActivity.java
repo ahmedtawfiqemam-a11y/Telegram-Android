@@ -67,6 +67,10 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setChecked(MidoConfig.antiDelete)
                 .setValue("الاحتفاظ بالرسائل حتى لو حذفها الطرف الآخر لجميع الأطراف"));
 
+        items.add(UItem.asCheck(26, "الاحتفاظ بالقنوات بعد الطرد 🚪 (Keep Kicked Chats)")
+                .setChecked(MidoConfig.keepKickedChats)
+                .setValue("بقاء القنوات والمجموعات والرسائل السابقة حتى بعد الطرد أو الحظر منها"));
+
         items.add(UItem.asCheck(23, "معرفة الرسائل قبل التعديل ✏️ (Edit History)")
                 .setChecked(MidoConfig.showEditHistory)
                 .setValue("إظهار النص الأصلي القديم للرسالة قبل قيام الطرف الآخر بتعديلها"));
@@ -100,6 +104,10 @@ public class MidoSettingsActivity extends BaseFragment {
         items.add(UItem.asCheck(3, "مشاهدة الاستوري بدون ظهور 👁️ (Stealth Stories)")
                 .setChecked(MidoConfig.stealthStories)
                 .setValue("مشاهدة قصص وحالات الآخرين دون معرفتهم ودون تسجيل اسمك في المشاهدات"));
+
+        items.add(UItem.asCheck(27, "بقاء الاستوريات 7+ أيام وللأبد ⏳ (Keep Stories)")
+                .setChecked(MidoConfig.antiExpireStories)
+                .setValue("الاحتفاظ باستوريات جهات الاتصال والقنوات دون مسحها بعد 24 ساعة"));
 
         items.add(UItem.asCheck(8, "المستمع المتخفي بالمكالمات الصوتية 🎧 (Ghost Voice Call)")
                 .setChecked(MidoConfig.ghostCall)
@@ -137,6 +145,11 @@ public class MidoSettingsActivity extends BaseFragment {
             MidoConfig.setAntiDelete(!MidoConfig.antiDelete);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.antiDelete);
+            }
+        } else if (item.id == 26) {
+            MidoConfig.setKeepKickedChats(!MidoConfig.keepKickedChats);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.keepKickedChats);
             }
         } else if (item.id == 23) {
             MidoConfig.setShowEditHistory(!MidoConfig.showEditHistory);
@@ -177,6 +190,11 @@ public class MidoSettingsActivity extends BaseFragment {
             MidoConfig.setStealthStories(!MidoConfig.stealthStories);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.stealthStories);
+            }
+        } else if (item.id == 27) {
+            MidoConfig.setAntiExpireStories(!MidoConfig.antiExpireStories);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.antiExpireStories);
             }
         } else if (item.id == 8) {
             MidoConfig.setGhostCall(!MidoConfig.ghostCall);
