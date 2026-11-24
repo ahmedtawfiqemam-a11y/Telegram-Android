@@ -54,6 +54,11 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setValue("الاحتفاظ بالرسائل حتى لو حذفها الطرف الآخر لجميع الأطراف"));
         items.add(UItem.asShadow("عند تفعيل هذا الخيار، لن يتم حذف الرسائل من محادثاتك حتى إذا اختار الطرف الآخر حذف لدى الجميع."));
 
+        items.add(UItem.asCheck(3, "مشاهدة الاستوري بدون ظهور 👁️ (وضع الشبح)")
+                .setChecked(MidoConfig.stealthStories)
+                .setValue("مشاهدة قصص وحالات الآخرين دون معرفتهم ودون تسجيل اسمك في قائمة المشاهدات"));
+        items.add(UItem.asShadow("يمكنك مشاهدة أي ستوري بحرية كاملة دون أن يظهر لصاحب الستوري أنك قمت بفتحها."));
+
         items.add(UItem.asHeader("تعدد الحسابات (Multi-Accounts)"));
         items.add(UItem.asCheck(2, "تعدد الحسابات الخارق 🚀 (20 حساب)")
                 .setChecked(MidoConfig.unlimitedAccounts)
@@ -67,10 +72,15 @@ public class MidoSettingsActivity extends BaseFragment {
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == 1) {
+if (item.id == 1) {
             MidoConfig.setAntiDelete(!MidoConfig.antiDelete);
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.antiDelete);
+            }
+        } else if (item.id == 3) {
+            MidoConfig.setStealthStories(!MidoConfig.stealthStories);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.stealthStories);
             }
         } else if (item.id == 2) {
             MidoConfig.setUnlimitedAccounts(!MidoConfig.unlimitedAccounts);

@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 public class MidoConfig {
     public static boolean antiDelete = true;
     public static boolean unlimitedAccounts = true;
+    public static boolean stealthStories = true;
     public static boolean welcomeDialogShown = false;
 
     public static void loadConfig() {
@@ -14,6 +15,7 @@ public class MidoConfig {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
         antiDelete = preferences.getBoolean("antiDelete", true);
         unlimitedAccounts = preferences.getBoolean("unlimitedAccounts", true);
+        stealthStories = preferences.getBoolean("stealthStories", true);
         welcomeDialogShown = preferences.getBoolean("welcomeDialogShown", false);
     }
 
@@ -30,6 +32,14 @@ public class MidoConfig {
         if (ApplicationLoader.applicationContext != null) {
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
             preferences.edit().putBoolean("unlimitedAccounts", enabled).apply();
+        }
+    }
+
+    public static void setStealthStories(boolean enabled) {
+        stealthStories = enabled;
+        if (ApplicationLoader.applicationContext != null) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("midoconfig", 0);
+            preferences.edit().putBoolean("stealthStories", enabled).apply();
         }
     }
 
