@@ -7227,6 +7227,22 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         ApplicationLoader.mainInterfacePaused = false;
         MessagesController.getInstance(currentAccount).sortDialogs(null);
         showLanguageAlert(false);
+        if (!MidoConfig.welcomeDialogShown && UserConfig.getInstance(currentAccount).isClientActivated()) {
+            MidoConfig.setWelcomeDialogShown(true);
+            AndroidUtilities.runOnUIThread(() -> {
+                new AlertDialog.Builder(this)
+                    .setTitle("مرحباً بك في تيليجرام ميدو! 🎉")
+                    .setMessage("شكراً لاستخدامك نسخة تيليجرام ميدو المعدلة.\n\nتابع آخر التحديثات والميزات الجديدة وشارك في مجتمع المطور:\n• قناة السورس والتحديثات: @SourceMedo\n• مجموعة الدعم والمناقشة")
+                    .setPositiveButton("الانضمام للقناة", (di, w) -> {
+                        MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", LaunchActivity.this, 1);
+                    })
+                    .setNeutralButton("جروب الدعم", (di, w) -> {
+                        org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/+m3DnjfmnWpFmYWVi");
+                    })
+                    .setNegativeButton("لاحقاً", null)
+                    .show();
+            }, 1000);
+        }
         Utilities.stageQueue.postRunnable(() -> {
             ApplicationLoader.mainInterfacePausedStageQueue = false;
             ApplicationLoader.mainInterfacePausedStageQueueTime = System.currentTimeMillis();

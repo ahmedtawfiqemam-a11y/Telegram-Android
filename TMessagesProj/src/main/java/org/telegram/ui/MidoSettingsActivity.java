@@ -4,8 +4,10 @@ import android.content.Context;
 import android.view.View;
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MidoConfig;
 import org.telegram.messenger.R;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -51,6 +53,17 @@ public class MidoSettingsActivity extends BaseFragment {
                 .setChecked(MidoConfig.antiDelete)
                 .setValue("الاحتفاظ بالرسائل حتى لو حذفها الطرف الآخر لجميع الأطراف"));
         items.add(UItem.asShadow("عند تفعيل هذا الخيار، لن يتم حذف الرسائل من محادثاتك حتى إذا اختار الطرف الآخر حذف لدى الجميع."));
+
+        items.add(UItem.asHeader("تعدد الحسابات (Multi-Accounts)"));
+        items.add(UItem.asCheck(2, "تعدد الحسابات الخارق 🚀 (20 حساب)")
+                .setChecked(MidoConfig.unlimitedAccounts)
+                .setValue("إمكانية تسجيل الدخول بأرقام متعددة تصل إلى 20 حساباً بدون قيود وبدون الحاجة لـ Telegram Premium"));
+        items.add(UItem.asShadow("يتيح لك التبديل بين حتى 20 رقماً هاتفياً مسجلاً في نفس التطبيق بسلاسة."));
+
+        items.add(UItem.asHeader("مجتمع وقنوات المطور ميدو"));
+        items.add(UItem.asButton(10, "📢 قناة التحديثات والسورس (@SourceMedo)", "اضغط للانضمام لقناة وسورس المطور الرسمية"));
+        items.add(UItem.asButton(11, "💬 مجموعة المناقشة والدعم الفني", "اضغط للانضمام لجروب النقاش وحل المشكلات"));
+        items.add(UItem.asShadow("انضم لقنوات المطور للحصول على التحديثات والميزات الجديدة أولاً بأول."));
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
@@ -59,6 +72,15 @@ public class MidoSettingsActivity extends BaseFragment {
             if (view instanceof TextCheckCell) {
                 ((TextCheckCell) view).setChecked(MidoConfig.antiDelete);
             }
+        } else if (item.id == 2) {
+            MidoConfig.setUnlimitedAccounts(!MidoConfig.unlimitedAccounts);
+            if (view instanceof TextCheckCell) {
+                ((TextCheckCell) view).setChecked(MidoConfig.unlimitedAccounts);
+            }
+        } else if (item.id == 10) {
+            MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", this, 1);
+        } else if (item.id == 11) {
+            Browser.openUrl(getParentActivity(), "https://t.me/+m3DnjfmnWpFmYWVi");
         }
     }
 }

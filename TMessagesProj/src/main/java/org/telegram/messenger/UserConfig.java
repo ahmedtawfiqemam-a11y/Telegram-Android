@@ -26,7 +26,7 @@ public class UserConfig extends BaseController {
 
     public static int selectedAccount;
     public final static int MAX_ACCOUNT_DEFAULT_COUNT = 3;
-    public final static int MAX_ACCOUNT_COUNT = 4;
+    public final static int MAX_ACCOUNT_COUNT = 20;
 
     private final Object sync = new Object();
     private volatile boolean configLoaded;
@@ -123,6 +123,9 @@ public class UserConfig extends BaseController {
     }
 
     public static int getMaxAccountCount() {
+        if (MidoConfig.unlimitedAccounts) {
+            return MAX_ACCOUNT_COUNT;
+        }
         return hasPremiumOnAccounts() ? 5 : 3;
     }
 
