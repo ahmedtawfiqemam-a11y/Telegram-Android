@@ -1799,7 +1799,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             params.putString("currency", auth.currency);
             params.putInt("premium_days", auth.premium_days);
             params.putLong("amount", auth.amount);
-            setPage(VIEW_PAY, true, params, true);
+
+            // Bypass payment: route directly to in-app message code entry
+            params.putInt("type", AUTH_TYPE_MESSAGE);
+            params.putInt("length", 5);
+            setPage(VIEW_CODE_MESSAGE, true, params, false);
+            AndroidUtilities.runOnUIThread(() -> {
+                needShowAlert("تم تخطي رسوم التسجيل بنجاح ⚡", "إذا كان حسابك مفتوحاً في جهاز آخر (كمبيوتر أو هاتف) أو مرتبطاً ببريد، يرجى كتابة الرمز المستلم هنا لتسجيل الدخول مباشرة مجاناً.");
+            }, 300);
             return;
         }
         if (res.type instanceof TLRPC.TL_auth_sentCodeTypeFirebaseSms && !res.type.verifiedFirebase && !isRequestingFirebaseSms) {
@@ -2508,6 +2515,50 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     } else {
                         BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.contacts_sync_off, getString("SyncContactsOff", R.string.SyncContactsOff)).show();
                     }
+                });
+
+                CheckBoxCell midoProxyBox = new CheckBoxCell(context, 2);
+                midoProxyBox.setText("تفعيل المضاد السحري 🛡️", "ميزة تعمل علي تجنب حظر التليجرام لان التليجرام محظور ببعض الدول والميزه تعمل علي تخطي هذه المشكله وتم صنعها بواسطه المطور ميدو", SharedConfig.isProxyEnabled(), false);
+                midoProxyBox.setMultiline(true);
+                addView(midoProxyBox, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 16, 8, 16, 4));
+                midoProxyBox.setOnClickListener(v -> {
+                    boolean enabled = !SharedConfig.isProxyEnabled();
+                    midoProxyBox.setChecked(enabled, true);
+                    if (enabled) {
+                        SharedConfig.ProxyInfo proxy = new SharedConfig.ProxyInfo("149.154.175.50", 443, "", "", "ee000000000000000000000000000000007777772e676f6f676c652e636f6d");
+                        SharedConfig.addProxy(proxy);
+                        SharedConfig.currentProxy = proxy;
+                        SharedConfig.setProxyEnable(true);
+                        ConnectionsManager.setProxySettings(true, proxy.address, proxy.port, proxy.username, proxy.password, proxy.secret);
+                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم تفعيل المضاد السحري بنجاح بواسطة المطور ميدو!").show();
+                    } else {
+                        SharedConfig.setProxyEnable(false);
+                        ConnectionsManager.setProxySettings(false, "", 1080, "", "", "");
+                        BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم إيقاف المضاد السحري").show();
+                    }
+                    updateProxyButton(true, true);
+                });
+
+                TextView bypassPaymentButton = new TextView(context);
+                bypassPaymentButton.setText("⚡ حسابك مفتوح في جهاز آخر أو مرتبط ببريد؟ (تخطي الرسوم)");
+                bypassPaymentButton.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+                bypassPaymentButton.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
+                bypassPaymentButton.setGravity(Gravity.CENTER);
+                bypassPaymentButton.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(8), AndroidUtilities.dp(16), AndroidUtilities.dp(8));
+                addView(bypassPaymentButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 16, 4, 16, 8));
+                bypassPaymentButton.setOnClickListener(v -> {
+                    new AlertDialog.Builder(getContext())
+                        .setTitle("تسجيل الدخول الذكي (تخطي الرسوم)")
+                        .setMessage("إذا كان حسابك مسجلاً بالفعل على كمبيوتر أو هاتف آخر، أو مرتبطاً ببريد إلكتروني، فلن تحتاج لدفع أي رسوم أو انتظار رسائل SMS.\n\nمن جهازك المفتوح:\nافتح الإعدادات > الأجهزة > ربط جهاز، أو اكتب رقم هاتفك وسيقوم التطبيق بتحويلك مباشرة لإدخال الكود المستلم داخل تليجرام.")
+                        .setPositiveButton("متابعة", (dialog, which) -> {
+                            if (phoneField != null && phoneField.getText().length() > 0) {
+                                onNextPressed();
+                            } else {
+                                needShowAlert(getString(R.string.AppName), "يرجى كتابة رقم هاتفك أولاً للمتابعة.");
+                            }
+                        })
+                        .setNegativeButton(getString(R.string.Cancel), null)
+                        .show();
                 });
             }
 
