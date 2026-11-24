@@ -2525,15 +2525,30 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     boolean enabled = !SharedConfig.isProxyEnabled();
                     midoProxyBox.setChecked(enabled, true);
                     if (enabled) {
-                        SharedConfig.ProxyInfo proxy = new SharedConfig.ProxyInfo("149.154.175.50", 443, "", "", "ee000000000000000000000000000000007777772e676f6f676c652e636f6d");
-                        SharedConfig.addProxy(proxy);
+                        org.telegram.utils.proxy.ProxySettings proxySettings = org.telegram.utils.proxy.ProxySettings.builder()
+                                .setAddress("149.154.175.50")
+                                .setPort(443)
+                                .setUser("")
+                                .setPassword("")
+                                .setSecret("ee000000000000000000000000000000007777772e676f6f676c652e636f6d")
+                                .setType(org.telegram.utils.proxy.ProxySettings.Type.MTPROTO)
+                                .build();
+                        SharedConfig.ProxyInfo proxy = SharedConfig.addProxy(new SharedConfig.ProxyInfo(proxySettings));
                         SharedConfig.currentProxy = proxy;
-                        SharedConfig.setProxyEnable(true);
-                        ConnectionsManager.setProxySettings(true, proxy.address, proxy.port, proxy.username, proxy.password, proxy.secret);
+                        MessagesController.getGlobalMainSettings().edit()
+                                .putString("proxy_ip", proxySettings.getAddress())
+                                .putInt("proxy_port", proxySettings.getPort())
+                                .putString("proxy_user", proxySettings.getUser())
+                                .putString("proxy_pass", proxySettings.getPassword())
+                                .putString("proxy_secret", proxySettings.getSecret())
+                                .putInt("proxy_type", org.telegram.utils.proxy.ProxySettings.typeToInt(proxySettings.getType()))
+                                .putBoolean("proxy_enabled", true)
+                                .apply();
+                        ConnectionsManager.setProxySettings(true, proxySettings);
                         BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم تفعيل المضاد السحري بنجاح بواسطة المطور ميدو!").show();
                     } else {
-                        SharedConfig.setProxyEnable(false);
-                        ConnectionsManager.setProxySettings(false, "", 1080, "", "", "");
+                        MessagesController.getGlobalMainSettings().edit().putBoolean("proxy_enabled", false).apply();
+                        ConnectionsManager.setProxySettings(false, null);
                         BulletinFactory.of(slideViewsContainer, null).createSimpleBulletin(R.raw.ic_shield, "تم إيقاف المضاد السحري").show();
                     }
                     updateProxyButton(true, true);
