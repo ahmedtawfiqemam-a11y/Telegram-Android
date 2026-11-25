@@ -90,8 +90,9 @@ jobs:
       - name: Locate generated APK
         run: |
           mkdir -p apk-output
-          find TMessagesProj_AppStandalone/build/outputs/apk TMessagesProj_App/build/outputs/apk -name "*.apk" 2>/dev/null -exec cp -v {} apk-output/Mido-Telegram.apk \;
+          find . -maxdepth 7 -path "*/build/outputs/apk/*" -name "*.apk" -exec cp -v {} apk-output/Mido-Telegram.apk \;
           ls -lh apk-output/
+          test -s apk-output/Mido-Telegram.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
