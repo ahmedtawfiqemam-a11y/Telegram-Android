@@ -77,6 +77,15 @@ public class VoIPHelper {
 
 	private static boolean callConfirmed = false;
 
+	public static void startCallConfirmed(TLRPC.User user, boolean videoCall, boolean canVideoCall, final Activity activity, TLRPC.UserFull userFull, AccountInstance accountInstance) {
+		callConfirmed = true;
+		try {
+			startCall(user, videoCall, canVideoCall, activity, userFull, accountInstance);
+		} finally {
+			callConfirmed = false;
+		}
+	}
+
 	public static void startCall(TLRPC.User user, boolean videoCall, boolean canVideoCall, final Activity activity, TLRPC.UserFull userFull, AccountInstance accountInstance) {
 		if (MidoConfig.confirmCall && !callConfirmed && activity != null && !activity.isFinishing()) {
 			String name = user != null ? ContactsController.formatName(user.first_name, user.last_name) : "";
@@ -84,11 +93,7 @@ public class VoIPHelper {
 			AlertDialog.Builder b = new AlertDialog.Builder(activity);
 			b.setTitle("تأكيد الاتصال 📞");
 			b.setMessage(msg);
-			b.setPositiveButton("اتصال", (d, w) -> {
-				callConfirmed = true;
-				startCall(user, videoCall, canVideoCall, activity, userFull, accountInstance);
-				callConfirmed = false;
-			});
+			b.setPositiveButton("اتصال", (d, w) -> startCallConfirmed(user, videoCall, canVideoCall, activity, userFull, accountInstance));
 			b.setNegativeButton("إلغاء", null);
 			try {
 				b.show();

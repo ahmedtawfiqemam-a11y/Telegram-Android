@@ -689,7 +689,9 @@ public class UserCell extends FrameLayout implements NotificationCenter.Notifica
             nameTextView.setLeftDrawable(botVerification);
         }
         if (MidoConfig.devBadgeEnabled && ((currentUser != null && MidoConfig.isDevUser(currentUser)) || (currentChat != null && MidoConfig.isDevChat(currentChat)))) {
-            emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+            if (!(emojiStatus.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+            }
             nameTextView.setRightDrawable(emojiStatus);
             nameTextView.setRightDrawableTopPadding(-dp(0.5f));
         } else if (currentUser != null && MessagesController.getInstance(currentAccount).isPremiumUser(currentUser) && !MessagesController.getInstance(currentAccount).premiumFeaturesBlocked()) {

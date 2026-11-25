@@ -17,6 +17,8 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository and submodules
@@ -100,3 +102,16 @@ jobs:
           name: Mido-Telegram-${{ github.event.inputs.variant || 'afatStandalone' }}-APK
           path: apk-output/*.apk
           retention-days: 30
+
+      - name: Publish Direct Download Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VARIANT: ${{ github.event.inputs.variant || 'afatStandalone' }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::8}"
+          TAG="mido-${VARIANT}-${SHORT_SHA}-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" apk-output/Mido-Telegram.apk \
+            --target "${GITHUB_SHA}" \
+            --title "Mido Telegram (${VARIANT}) - ${SHORT_SHA}" \
+            --notes "Direct standalone APK build from branch \`${GITHUB_REF_NAME}\` (commit \`${SHORT_SHA}\`, run #${GITHUB_RUN_NUMBER})." \
+            --latest=false || gh release upload "$TAG" apk-output/Mido-Telegram.apk --clobber

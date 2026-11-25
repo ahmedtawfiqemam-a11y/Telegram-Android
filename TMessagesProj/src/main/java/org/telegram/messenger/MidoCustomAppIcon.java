@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -82,6 +83,7 @@ public class MidoCustomAppIcon {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("image/*");
             intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             fragment.startActivityForResult(Intent.createChooser(intent, "اختر صورة للتطبيق"), REQ_CODE_PICK_APP_ICON);
         } catch (Throwable e) {
             FileLog.e(e);
@@ -89,19 +91,34 @@ public class MidoCustomAppIcon {
         }
     }
 
+    private static boolean isFragmentAlive(BaseFragment fragment) {
+        if (fragment == null || fragment.isFinished) {
+            return false;
+        }
+        Activity act = fragment.getParentActivity();
+        if (act == null || act.isFinishing()) {
+            return false;
+        }
+        return Build.VERSION.SDK_INT < 17 || !act.isDestroyed();
+    }
+
     public static boolean handleActivityResult(BaseFragment fragment, int requestCode, int resultCode, Intent data) {
         if (requestCode != REQ_CODE_PICK_APP_ICON) {
             return false;
         }
-        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null || fragment == null || fragment.getParentActivity() == null) {
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null || !isFragmentAlive(fragment)) {
             return true;
         }
         Uri uri = data.getData();
-        Context ctx = fragment.getParentActivity();
+        Context ctx = fragment.getParentActivity().getApplicationContext();
         Utilities.globalQueue.postRunnable(() -> {
             Bitmap processed = decodeAndCropSquare(ctx, uri, 256);
             if (processed == null) {
-                AndroidUtilities.runOnUIThread(() -> BulletinFactory.of(fragment).createErrorBulletin("تعذر قراءة الصورة المختارة").show());
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (isFragmentAlive(fragment) && fragment.fragmentView != null) {
+                        BulletinFactory.of(fragment).createErrorBulletin("تعذر قراءة الصورة المختارة").show();
+                    }
+                });
                 return;
             }
             File outFile = getIconFile();
@@ -121,22 +138,35 @@ public class MidoCustomAppIcon {
             AndroidUtilities.runOnUIThread(() -> {
                 MidoConfig.setCustomAppIconPath(outFile.getAbsolutePath());
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.midoCustomAppIconChanged);
-                pinCustomShortcut(ctx, processed);
-                BulletinFactory.of(fragment).createSuccessBulletin("تم تعيين صورتك المخصصة للتطبيق وتجهيز أيقونة الشاشة الرئيسية 🖼️").show();
+                Activity act = isFragmentAlive(fragment) ? fragment.getParentActivity() : null;
+                boolean pinned = act != null && pinCustomShortcut(act, processed);
+                if (isFragmentAlive(fragment) && fragment.fragmentView != null) {
+                    BulletinFactory.of(fragment).createSuccessBulletin(
+                            pinned
+                                    ? "تم تعيين صورتك المخصصة للتطبيق وتجهيز أيقونة الشاشة الرئيسية 🖼️"
+                                    : "تم حفظ صورتك المخصصة داخل التطبيق 🖼️"
+                    ).show();
+                }
             });
         });
         return true;
     }
 
     public static void pinCustomShortcutToHome(BaseFragment fragment) {
-        if (fragment == null || fragment.getParentActivity() == null) return;
+        if (!isFragmentAlive(fragment)) return;
         Bitmap bmp = getCustomIconBitmap();
         if (bmp == null) {
             openImagePicker(fragment);
             return;
         }
-        pinCustomShortcut(fragment.getParentActivity(), bmp);
-        BulletinFactory.of(fragment).createSuccessBulletin("تم إرسال أيقونة التطبيق المخصصة للشاشة الرئيسية 📲").show();
+        boolean ok = pinCustomShortcut(fragment.getParentActivity(), bmp);
+        if (fragment.fragmentView != null) {
+            if (ok) {
+                BulletinFactory.of(fragment).createSuccessBulletin("تم إرسال أيقونة التطبيق المخصصة للشاشة الرئيسية 📲").show();
+            } else {
+                BulletinFactory.of(fragment).createErrorBulletin("لانشر الهاتف لا يدعم تثبيت الأيقونات المختصرة تلقائياً").show();
+            }
+        }
     }
 
     public static void showManageCustomIconDialog(BaseFragment fragment) {
@@ -190,33 +220,47 @@ public class MidoCustomAppIcon {
         }
     }
 
-    private static void pinCustomShortcut(Context ctx, Bitmap bmp) {
-        if (ctx == null || bmp == null) return;
+    private static boolean pinCustomShortcut(Context ctx, Bitmap bmp) {
+        if (ctx == null || bmp == null) return false;
         try {
             Intent launchIntent = new Intent(ctx, LaunchActivity.class);
+            launchIntent.setPackage(ctx.getPackageName());
             launchIntent.setAction(Intent.ACTION_MAIN);
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 ShortcutManager sm = ctx.getSystemService(ShortcutManager.class);
                 if (sm != null && sm.isRequestPinShortcutSupported()) {
+                    // Build an opaque full-bleed bitmap inside adaptive layer so Android 8-16 / OneUI squircles show zero black corners
+                    int size = 216;
+                    Bitmap adaptive = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+                    Canvas c = new Canvas(adaptive);
+                    c.drawColor(Color.WHITE);
+                    int inset = Math.round(size * 0.14f);
+                    RectF dst = new RectF(inset, inset, size - inset, size - inset);
+                    Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    c.drawBitmap(bmp, null, dst, p);
+
                     ShortcutInfo shortcut = new ShortcutInfo.Builder(ctx, SHORTCUT_ID)
                             .setShortLabel("Mido Telegram")
                             .setLongLabel("Mido Telegram")
-                            .setIcon(Icon.createWithBitmap(bmp))
+                            .setIcon(Icon.createWithAdaptiveBitmap(adaptive))
                             .setIntent(launchIntent)
                             .build();
-                    sm.requestPinShortcut(shortcut, null);
+                    return sm.requestPinShortcut(shortcut, null);
                 }
+                return false;
             } else {
                 Intent addIntent = new Intent("com.android.launcher.action.INSTALL_SHORTCUT");
                 addIntent.putExtra(Intent.EXTRA_SHORTCUT_INTENT, launchIntent);
                 addIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, "Mido Telegram");
                 addIntent.putExtra(Intent.EXTRA_SHORTCUT_ICON, Bitmap.createScaledBitmap(bmp, 128, 128, true));
                 ctx.sendBroadcast(addIntent);
+                return true;
             }
         } catch (Throwable e) {
             FileLog.e(e);
+            return false;
         }
     }
 

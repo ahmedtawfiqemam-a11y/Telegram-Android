@@ -2,20 +2,24 @@ package org.telegram.ui.Components;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.graphics.RectF;
-import android.text.TextUtils;
-import android.util.TypedValue;
+import android.os.Build;
 import android.view.Gravity;
+import android.view.PixelCopy;
 import android.view.View;
+import android.view.Window;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import android.content.ContextWrapper;
+import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 
@@ -44,6 +48,7 @@ public class MidoIdleBlurOverlay extends FrameLayout implements NotificationCent
     private Bitmap blurredBitmap;
     private boolean isBlurred = false;
     private boolean isHostResumed = false;
+    private int captureGeneration = 0;
 
     private final Runnable idleRunnable = this::activateBlur;
 
@@ -149,6 +154,18 @@ public class MidoIdleBlurOverlay extends FrameLayout implements NotificationCent
         }
     }
 
+    public boolean isBlurred() {
+        return isBlurred;
+    }
+
+    public boolean dismissIfBlurred() {
+        if (!isBlurred) {
+            return false;
+        }
+        dismissAnimated();
+        return true;
+    }
+
     private void rescheduleIdleTimer() {
         AndroidUtilities.cancelRunOnUIThread(idleRunnable);
         if (!isHostResumed || !MidoConfig.autoBlurOnIdle || isBlurred) {
@@ -181,6 +198,7 @@ public class MidoIdleBlurOverlay extends FrameLayout implements NotificationCent
             return;
         }
         isBlurred = false;
+        captureGeneration++;
         animate().cancel();
         animate().alpha(0f).setDuration(180).withEndAction(() -> {
             if (!isBlurred) {
@@ -193,22 +211,70 @@ public class MidoIdleBlurOverlay extends FrameLayout implements NotificationCent
 
     private void dismissImmediate() {
         isBlurred = false;
+        captureGeneration++;
         animate().cancel();
         setAlpha(0f);
         setVisibility(GONE);
         recycleBitmap();
     }
 
+    private Window findHostWindow() {
+        Context ctx = sourceView != null ? sourceView.getContext() : getContext();
+        while (ctx instanceof ContextWrapper) {
+            if (ctx instanceof Activity) {
+                Activity act = (Activity) ctx;
+                return !act.isFinishing() ? act.getWindow() : null;
+            }
+            ctx = ((ContextWrapper) ctx).getBaseContext();
+        }
+        return null;
+    }
+
     private void captureAndBlurSource() {
         recycleBitmap();
-        if (sourceView == null || sourceView.getWidth() <= 0 || sourceView.getHeight() <= 0) {
+        final int token = ++captureGeneration;
+        if (sourceView == null || !sourceView.isAttachedToWindow() || sourceView.getWidth() <= 0 || sourceView.getHeight() <= 0) {
             return;
         }
+        final int w = sourceView.getWidth();
+        final int h = sourceView.getHeight();
+        final int scaleW = Math.max(64, w / 6);
+        final int scaleH = Math.max(64, h / 6);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Window window = findHostWindow();
+            if (window != null && window.getDecorView() != null && window.getDecorView().isAttachedToWindow()) {
+                try {
+                    int[] loc = new int[2];
+                    sourceView.getLocationInWindow(loc);
+                    Rect region = new Rect(loc[0], loc[1], loc[0] + w, loc[1] + h);
+                    Bitmap bmp = Bitmap.createBitmap(scaleW, scaleH, Bitmap.Config.ARGB_8888);
+                    PixelCopy.request(window, region, bmp, copyResult -> {
+                        if (copyResult == PixelCopy.SUCCESS && isBlurred && token == captureGeneration && isAttachedToWindow()) {
+                            try {
+                                Utilities.stackBlurBitmap(bmp, 18);
+                                blurredBitmap = bmp;
+                                invalidate();
+                                return;
+                            } catch (Throwable e) {
+                                FileLog.e(e);
+                            }
+                        }
+                        if (!bmp.isRecycled()) {
+                            bmp.recycle();
+                        }
+                    }, AndroidUtilities.applicationHandler);
+                    return;
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }
+            // Do not call software Canvas.draw() on API >= 26 hierarchies containing HARDWARE bitmaps/RenderNodes;
+            // fall back cleanly to the frosted privacy scrim in onDraw().
+            return;
+        }
+
         try {
-            int w = sourceView.getWidth();
-            int h = sourceView.getHeight();
-            int scaleW = Math.max(64, w / 6);
-            int scaleH = Math.max(64, h / 6);
             Bitmap bmp = Bitmap.createBitmap(scaleW, scaleH, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
             c.scale(scaleW / (float) w, scaleH / (float) h);

@@ -99,9 +99,6 @@ public class MidoCurrencyTrackingActivity extends BaseFragment implements MainTa
             protected void dispatchDraw(Canvas canvas) {
                 super.dispatchDraw(canvas);
                 glassEngine.invalidate();
-                if (!hasMainTabs) {
-                    AndroidUtilities.drawNavigationBarProtection(canvas, this, getThemedColor(Theme.key_windowBackgroundWhite), mSystemInsets.bottom);
-                }
             }
         };
         contentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
@@ -319,6 +316,16 @@ public class MidoCurrencyTrackingActivity extends BaseFragment implements MainTa
     @Override
     protected RecyclerListView getListViewForSimpleGlass() {
         return listView;
+    }
+
+    @Override
+    public boolean isSupportEdgeToEdge() {
+        return true;
+    }
+
+    @Override
+    public boolean drawEdgeNavigationBar() {
+        return !hasMainTabs;
     }
 
     // =========================================================================

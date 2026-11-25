@@ -19,6 +19,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.collection.LongSparseArray;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -39,9 +40,11 @@ import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalRecyclerView;
+import org.telegram.utils.glass.BaseFragmentSimpleGlass;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -167,7 +170,6 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
         listView.adapter.setApplyBackground(false);
         listView.setSections();
         listView.setSectionsDrawBackground(true);
-        listView.setPadding(0, ActionBar.getCurrentActionBarHeight() + dp(10), 0, dp(76));
         listView.setClipToPadding(false);
         rootLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
@@ -213,6 +215,39 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
 
         scanDialogs();
         return fragmentView;
+    }
+
+    @Nullable
+    @Override
+    protected RecyclerListView getListViewForSimpleGlass() {
+        return listView;
+    }
+
+    @Override
+    public boolean isSupportEdgeToEdge() {
+        return true;
+    }
+
+    @Override
+    public void onInsets(int left, int top, int right, int bottom) {
+        super.onInsets(left, top, right, bottom);
+        updateLayoutInsets();
+    }
+
+    private void updateLayoutInsets() {
+        int extraBottom = (bottomActionBar != null && bottomActionBar.getVisibility() == View.VISIBLE) ? dp(76) : dp(12);
+        if (listView != null) {
+            BaseFragmentSimpleGlass.setListViewParams(listView, mSystemInsets.top, mSystemInsets.bottom, ActionBar.getCurrentActionBarHeight() + dp(6), extraBottom);
+        }
+        if (bottomActionBar != null && bottomActionBar.getLayoutParams() instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) bottomActionBar.getLayoutParams();
+            int navBottom = mSystemInsets.bottom > 0 ? mSystemInsets.bottom : AndroidUtilities.navigationBarHeight;
+            int targetBottom = navBottom + dp(14);
+            if (lp.bottomMargin != targetBottom) {
+                lp.bottomMargin = targetBottom;
+                bottomActionBar.setLayoutParams(lp);
+            }
+        }
     }
 
     @Override
@@ -276,11 +311,13 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
             } else if (isFrozen) {
                 countFrozen++;
                 String name = UserObject.getUserName(user);
+                if (TextUtils.isEmpty(name)) name = "حساب غير متاح";
                 String uname = UserObject.getPublicUsername(user, false);
-                String tag = isBlocked ? "محظور 🚫" : "مجمّد / مقيد ❄️";
-                String sub = (!TextUtils.isEmpty(uname) ? "@" + uname + " • " : "") + "حساب متجمد أو مقيد";
+                String tag = isBlocked ? "محظور 🚫" : (isRestricted ? "مقيّد ⚠️" : "غير متاح ❄️");
+                String desc = isBlocked ? "حساب محظور" : (isRestricted ? "حساب مقيّد أو مخالفة" : "غير متاح أو بدون نشاط");
+                String sub = (!TextUtils.isEmpty(uname) ? "@" + uname + " • " : "") + desc;
                 allEntries.add(new Entry(d.id, user, d.last_message_date, CAT_FROZEN,
-                        name, sub, tag, 0xFFF59E0B));
+                        name, sub, tag, isBlocked ? 0xFFE53935 : 0xFFF59E0B));
             } else if (isBot) {
                 countBots++;
                 String name = UserObject.getUserName(user);
@@ -295,10 +332,10 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
     }
 
     private void refreshList() {
-        updateBottomBar();
         if (listView != null && listView.adapter != null) {
             listView.adapter.update(true);
         }
+        updateBottomBar();
     }
 
     private void toggleSelectAll() {
@@ -332,11 +369,19 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
             simpleActionBar.setTitle("الحسابات المحذوفة (" + allEntries.size() + ")");
         } else {
             bottomActionBar.setVisibility(View.VISIBLE);
+            bottomActionBar.bringToFront();
             selectedCountTv.setText("تم تحديد: " + count);
-            boolean allSelected = !filteredEntries.isEmpty() && count >= filteredEntries.size();
+            int visibleSelected = 0;
+            for (int i = 0; i < filteredEntries.size(); i++) {
+                if (selectedIds.contains(filteredEntries.get(i).dialogId)) {
+                    visibleSelected++;
+                }
+            }
+            boolean allSelected = !filteredEntries.isEmpty() && visibleSelected >= filteredEntries.size();
             selectAllToggleBtn.setText(allSelected ? "إلغاء الكل" : "تحديد الكل");
             simpleActionBar.setTitle("محدد: " + count);
         }
+        updateLayoutInsets();
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {

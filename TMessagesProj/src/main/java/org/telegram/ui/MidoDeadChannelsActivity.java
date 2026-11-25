@@ -19,6 +19,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.collection.LongSparseArray;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -40,9 +41,11 @@ import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalRecyclerView;
+import org.telegram.utils.glass.BaseFragmentSimpleGlass;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -96,6 +99,7 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
     private final ArrayList<DeadChannelEntry> allChannels = new ArrayList<>();
     private final ArrayList<DeadChannelEntry> filteredEntries = new ArrayList<>();
     private final HashSet<Long> selectedIds = new HashSet<>();
+    private final HashSet<Long> pendingLeftIds = new HashSet<>();
 
     private int count3M;
     private int count6M;
@@ -170,7 +174,6 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
         listView.adapter.setApplyBackground(false);
         listView.setSections();
         listView.setSectionsDrawBackground(true);
-        listView.setPadding(0, ActionBar.getCurrentActionBarHeight() + dp(10), 0, dp(76));
         listView.setClipToPadding(false);
         rootLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
@@ -218,6 +221,39 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
         return fragmentView;
     }
 
+    @Nullable
+    @Override
+    protected RecyclerListView getListViewForSimpleGlass() {
+        return listView;
+    }
+
+    @Override
+    public boolean isSupportEdgeToEdge() {
+        return true;
+    }
+
+    @Override
+    public void onInsets(int left, int top, int right, int bottom) {
+        super.onInsets(left, top, right, bottom);
+        updateLayoutInsets();
+    }
+
+    private void updateLayoutInsets() {
+        int extraBottom = (bottomActionBar != null && bottomActionBar.getVisibility() == View.VISIBLE) ? dp(76) : dp(12);
+        if (listView != null) {
+            BaseFragmentSimpleGlass.setListViewParams(listView, mSystemInsets.top, mSystemInsets.bottom, ActionBar.getCurrentActionBarHeight() + dp(6), extraBottom);
+        }
+        if (bottomActionBar != null && bottomActionBar.getLayoutParams() instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) bottomActionBar.getLayoutParams();
+            int navBottom = mSystemInsets.bottom > 0 ? mSystemInsets.bottom : AndroidUtilities.navigationBarHeight;
+            int targetBottom = navBottom + dp(14);
+            if (lp.bottomMargin != targetBottom) {
+                lp.bottomMargin = targetBottom;
+                bottomActionBar.setLayoutParams(lp);
+            }
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -256,7 +292,7 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
 
         for (int i = 0; i < rawDialogs.size(); i++) {
             TLRPC.Dialog d = rawDialogs.get(i);
-            if (d.id >= 0) continue; // Chats & channels have negative dialog IDs
+            if (d.id >= 0 || pendingLeftIds.contains(d.id)) continue; // Chats & channels have negative dialog IDs
 
             TLRPC.Chat chat = mc.getChat(-d.id);
             if (chat == null || ChatObject.isNotInChat(chat) || chat instanceof TLRPC.TL_channelForbidden) {
@@ -312,20 +348,28 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
     }
 
     private void refreshList() {
-        updateBottomBar();
         if (listView != null && listView.adapter != null) {
             listView.adapter.update(true);
         }
+        updateBottomBar();
     }
 
     private void toggleSelectAll() {
         if (filteredEntries.isEmpty()) return;
+        int selectableCount = 0;
         boolean allSel = true;
         for (int i = 0; i < filteredEntries.size(); i++) {
-            if (!selectedIds.contains(filteredEntries.get(i).dialogId)) {
-                allSel = false;
-                break;
+            DeadChannelEntry e = filteredEntries.get(i);
+            if (e.chat != null && e.chat.creator) {
+                continue;
             }
+            selectableCount++;
+            if (!selectedIds.contains(e.dialogId)) {
+                allSel = false;
+            }
+        }
+        if (selectableCount == 0) {
+            return;
         }
         if (allSel) {
             for (int i = 0; i < filteredEntries.size(); i++) {
@@ -333,8 +377,9 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
             }
         } else {
             for (int i = 0; i < filteredEntries.size(); i++) {
-                if (!filteredEntries.get(i).chat.creator) {
-                    selectedIds.add(filteredEntries.get(i).dialogId);
+                DeadChannelEntry e = filteredEntries.get(i);
+                if (e.chat != null && !e.chat.creator) {
+                    selectedIds.add(e.dialogId);
                 }
             }
         }
@@ -349,10 +394,25 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
             simpleActionBar.setTitle("القنوات المهجورة (" + filteredEntries.size() + ")");
         } else {
             bottomActionBar.setVisibility(View.VISIBLE);
+            bottomActionBar.bringToFront();
             selectedCountTv.setText("تم تحديد: " + count);
-            selectAllToggleBtn.setText(count >= Math.max(1, filteredEntries.size()) ? "إلغاء الكل" : "تحديد الكل");
+            int selectableCount = 0;
+            int visibleSelectedCount = 0;
+            for (int i = 0; i < filteredEntries.size(); i++) {
+                DeadChannelEntry e = filteredEntries.get(i);
+                if (e.chat != null && e.chat.creator) {
+                    continue;
+                }
+                selectableCount++;
+                if (selectedIds.contains(e.dialogId)) {
+                    visibleSelectedCount++;
+                }
+            }
+            boolean allSelectable = selectableCount > 0 && visibleSelectedCount >= selectableCount;
+            selectAllToggleBtn.setText(allSelectable ? "إلغاء الكل" : "تحديد الكل");
             simpleActionBar.setTitle("محدد للمغادرة: " + count);
         }
+        updateLayoutInsets();
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
@@ -452,10 +512,19 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
         builder.setPositiveButton("مغادرة الآن", (d, w) -> {
             MessagesController mc = MessagesController.getInstance(currentAccount);
             TLRPC.User me = UserConfig.getInstance(currentAccount).getCurrentUser();
+            TLRPC.InputPeer selfPeer = mc.getInputPeer(me);
             ArrayList<Long> toLeave = new ArrayList<>(selectedIds);
             for (int i = 0; i < toLeave.size(); i++) {
                 long did = toLeave.get(i);
-                mc.deleteParticipantFromChat(-did, me, null, deleteHistory[0], false);
+                pendingLeftIds.add(did);
+                if (selfPeer != null) {
+                    mc.deleteParticipantFromChat(-did, selfPeer, false, deleteHistory[0], null);
+                } else {
+                    mc.deleteParticipantFromChat(-did, me, null, deleteHistory[0], false);
+                }
+                if (deleteHistory[0]) {
+                    mc.deleteDialog(did, 0, false);
+                }
             }
             selectedIds.clear();
             scanChannels();

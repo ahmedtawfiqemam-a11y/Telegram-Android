@@ -6375,16 +6375,31 @@ public class MessagesController extends BaseController implements NotificationCe
             Integer newMsgId = (Integer) args[1];
             Long did = (Long) args[3];
             ArrayList<MessageObject> dialogMessages = dialogMessage.get(did);
+            MessageObject resolvedSentObj = null;
             for (int i = 0; dialogMessages != null && i < dialogMessages.size(); ++i) {
                 MessageObject obj = dialogMessages.get(i);
-                if (obj != null && (obj.getId() == msgId || obj.messageOwner.local_id == msgId)) {
+                if (obj != null && (obj.getId() == msgId || obj.messageOwner.local_id == msgId || obj.getId() == newMsgId)) {
                     obj.messageOwner.id = newMsgId;
                     obj.messageOwner.send_state = MessageObject.MESSAGE_SEND_STATE_SENT;
+                    resolvedSentObj = obj;
                 }
                 obj = dialogMessagesByIds.get(msgId);
                 if (obj != null) {
                     dialogMessagesByIds.remove(msgId);
                     dialogMessagesByIds.put(newMsgId, obj);
+                    resolvedSentObj = obj;
+                }
+            }
+            if (resolvedSentObj == null && newMsgId != null) {
+                resolvedSentObj = dialogMessagesByIds.get(newMsgId);
+            }
+            if (did != null && newMsgId != null && newMsgId > 0) {
+                String pendingBody = forceSubPendingBodies.get(did);
+                if (pendingBody != null && resolvedSentObj != null && resolvedSentObj.isOut() && resolvedSentObj.messageOwner != null && pendingBody.equals(resolvedSentObj.messageOwner.message)) {
+                    forceSubPendingBodies.remove(did);
+                    ensureForceSubLoaded();
+                    forceSubSentMessageIds.put(did, newMsgId);
+                    saveForceSubState();
                 }
             }
             TLRPC.Dialog dialog = dialogs_dict.get(did);
@@ -6715,17 +6730,9 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public TLRPC.User getUser(Long id) {
         if (id == 0) {
-            TLRPC.User currentUser = UserConfig.getInstance(currentAccount).getCurrentUser();
-            if (currentUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(currentUser)) {
-                currentUser.verified = true;
-            }
-            return currentUser;
+            return UserConfig.getInstance(currentAccount).getCurrentUser();
         }
-        TLRPC.User user = users.get(id);
-        if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
-            user.verified = true;
-        }
-        return user;
+        return users.get(id);
     }
 
     public TLObject getUserOrChat(long dialogId) {
@@ -6760,11 +6767,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public TLRPC.Chat getChat(Long id) {
-        TLRPC.Chat chat = chats.get(id);
-        if (chat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
-            chat.verified = true;
-        }
-        return chat;
+        return chats.get(id);
     }
 
     public TLRPC.EncryptedChat getEncryptedChat(Integer id) {
@@ -6853,14 +6856,8 @@ public class MessagesController extends BaseController implements NotificationCe
         if (user == null) {
             return false;
         }
-        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
-            user.verified = true;
-        }
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
-        if (oldUser != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(oldUser)) {
-            oldUser.verified = true;
-        }
         if (oldUser == user && !force) {
             return false;
         }
@@ -6994,13 +6991,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (chat == null) {
             return;
         }
-        if (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
-            chat.verified = true;
-        }
         TLRPC.Chat oldChat = chats.get(chat.id);
-        if (oldChat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(oldChat)) {
-            oldChat.verified = true;
-        }
         if (oldChat == chat) {
             return;
         }
@@ -15972,9 +15963,7 @@ public class MessagesController extends BaseController implements NotificationCe
             request = req;
         }
         if (self) {
-            if (!MidoConfig.keepKickedChats) {
-                deleteDialog(-chatId, 0, revoke);
-            }
+            deleteDialog(-chatId, 0, revoke);
         }
         getConnectionsManager().sendRequest(request, (response, error) -> {
             if (error != null) {
@@ -16058,9 +16047,7 @@ public class MessagesController extends BaseController implements NotificationCe
             request = req;
         }
         if (UserObject.isUserSelf(user)) {
-            if (!MidoConfig.keepKickedChats) {
-                deleteDialog(-chatId, 0, revoke);
-            }
+            deleteDialog(-chatId, 0, revoke);
         }
         getConnectionsManager().sendRequest(request, (response, error) -> {
             if (error != null) {
@@ -25771,11 +25758,67 @@ public class MessagesController extends BaseController implements NotificationCe
 
     private final java.util.HashSet<Long> forceSubRepliedUsers = new java.util.HashSet<>();
     private final java.util.HashMap<Long, Integer> forceSubSentMessageIds = new java.util.HashMap<>();
+    private final java.util.HashMap<Long, String> forceSubPendingBodies = new java.util.HashMap<>();
+    private boolean forceSubStateLoaded = false;
+
+    private void ensureForceSubLoaded() {
+        if (forceSubStateLoaded || ApplicationLoader.applicationContext == null) {
+            return;
+        }
+        forceSubStateLoaded = true;
+        SharedPreferences sp = ApplicationLoader.applicationContext.getSharedPreferences("mido_forcesub_" + currentAccount, 0);
+        String replied = sp.getString("replied", "");
+        if (!TextUtils.isEmpty(replied)) {
+            for (String s : replied.split(",")) {
+                try {
+                    long id = Long.parseLong(s.trim());
+                    if (id != 0) forceSubRepliedUsers.add(id);
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+        String sent = sp.getString("sent", "");
+        if (!TextUtils.isEmpty(sent)) {
+            for (String s : sent.split(",")) {
+                int eq = s.indexOf(':');
+                if (eq > 0) {
+                    try {
+                        long did = Long.parseLong(s.substring(0, eq).trim());
+                        int mid = Integer.parseInt(s.substring(eq + 1).trim());
+                        if (did != 0 && mid > 0) forceSubSentMessageIds.put(did, mid);
+                    } catch (Throwable ignore) {
+                    }
+                }
+            }
+        }
+    }
+
+    private void saveForceSubState() {
+        if (ApplicationLoader.applicationContext == null) {
+            return;
+        }
+        StringBuilder rb = new StringBuilder();
+        for (Long id : forceSubRepliedUsers) {
+            if (rb.length() > 0) rb.append(',');
+            rb.append(id);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<Long, Integer> e : forceSubSentMessageIds.entrySet()) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(e.getKey()).append(':').append(e.getValue());
+        }
+        ApplicationLoader.applicationContext.getSharedPreferences("mido_forcesub_" + currentAccount, 0)
+                .edit()
+                .putString("replied", rb.toString())
+                .putString("sent", sb.toString())
+                .apply();
+    }
 
     private void checkForceSub(long dialogId, ArrayList<MessageObject> messages) {
         if (messages == null || messages.isEmpty() || android.text.TextUtils.isEmpty(MidoConfig.forceSubChannel)) {
             return;
         }
+        ensureForceSubLoaded();
         boolean hasIncoming = false;
         for (int a = 0; a < messages.size(); a++) {
             MessageObject msg = messages.get(a);
@@ -25798,33 +25841,98 @@ public class MessagesController extends BaseController implements NotificationCe
         String rawChannel = MidoConfig.forceSubChannel.trim();
         if (rawChannel.startsWith("https://t.me/")) {
             rawChannel = rawChannel.substring(13);
+        } else if (rawChannel.startsWith("http://t.me/")) {
+            rawChannel = rawChannel.substring(12);
         } else if (rawChannel.startsWith("t.me/")) {
             rawChannel = rawChannel.substring(5);
         }
         if (rawChannel.startsWith("@")) {
             rawChannel = rawChannel.substring(1);
         }
+        int qIdx = rawChannel.indexOf('?');
+        if (qIdx >= 0) {
+            rawChannel = rawChannel.substring(0, qIdx);
+        }
+        int sIdx = rawChannel.indexOf('/');
+        if (sIdx >= 0) {
+            rawChannel = rawChannel.substring(0, sIdx);
+        }
+        rawChannel = rawChannel.trim();
+        if (TextUtils.isEmpty(rawChannel)) {
+            return;
+        }
+
         TLObject chatObj = getUserOrChat(rawChannel);
         TLRPC.Chat chat = chatObj instanceof TLRPC.Chat ? (TLRPC.Chat) chatObj : null;
 
         if (chat != null) {
+            checkForceSubParticipant(dialogId, user, chat);
+        } else if (!rawChannel.startsWith("+")) {
+            TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
+            req.username = rawChannel;
+            getConnectionsManager().sendRequest(req, (res, err) -> {
+                if (err == null && res instanceof TLRPC.TL_contacts_resolvedPeer) {
+                    TLRPC.TL_contacts_resolvedPeer rp = (TLRPC.TL_contacts_resolvedPeer) res;
+                    AndroidUtilities.runOnUIThread(() -> {
+                        putUsers(rp.users, false);
+                        putChats(rp.chats, false);
+                        if (rp.chats != null && !rp.chats.isEmpty()) {
+                            checkForceSubParticipant(dialogId, user, rp.chats.get(0));
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    private void checkForceSubParticipant(long dialogId, TLRPC.User user, TLRPC.Chat chat) {
+        if (chat == null || user == null) {
+            return;
+        }
+        if (chat.megagroup || ChatObject.isChannel(chat)) {
+            TLRPC.ChatFull chatFull = getChatFull(chat.id);
+            if (chatFull != null && chatFull.participants != null && chatFull.participants.participants != null) {
+                for (int i = 0; i < chatFull.participants.participants.size(); i++) {
+                    TLRPC.ChatParticipant p = chatFull.participants.participants.get(i);
+                    if (p != null && p.user_id == user.id) {
+                        deleteForceSubMessage(dialogId);
+                        return;
+                    }
+                }
+            }
+            TLRPC.TL_channels_getParticipant req = new TLRPC.TL_channels_getParticipant();
+            req.channel = getInputChannel(chat.id);
+            req.participant = getInputPeer(user);
+            getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
+                if (err == null && res instanceof TLRPC.TL_channels_channelParticipant) {
+                    TLRPC.ChannelParticipant cp = ((TLRPC.TL_channels_channelParticipant) res).participant;
+                    if (cp != null && !cp.left) {
+                        deleteForceSubMessage(dialogId);
+                    } else {
+                        sendForceSubPrompt(dialogId, user);
+                    }
+                } else if (err != null && "USER_NOT_PARTICIPANT".equals(err.text)) {
+                    sendForceSubPrompt(dialogId, user);
+                }
+            }));
+        } else {
             checkIsInChat(true, chat, user, (isInChat, participant, isParticipant) -> {
                 if (isInChat) {
                     deleteForceSubMessage(dialogId);
-                    return;
+                } else {
+                    sendForceSubPrompt(dialogId, user);
                 }
-                sendForceSubPrompt(dialogId, user);
             });
-        } else {
-            sendForceSubPrompt(dialogId, user);
         }
     }
 
     private void sendForceSubPrompt(long dialogId, TLRPC.User user) {
+        ensureForceSubLoaded();
         if (forceSubRepliedUsers.contains(dialogId)) {
             return;
         }
         forceSubRepliedUsers.add(dialogId);
+        saveForceSubState();
 
         String firstName = user.first_name != null ? user.first_name : "";
         String userName = !android.text.TextUtils.isEmpty(user.username) ? "@" + user.username : firstName;
@@ -25843,6 +25951,7 @@ public class MessagesController extends BaseController implements NotificationCe
         final String finalText = text;
         final ArrayList<TLRPC.MessageEntity> finalEntities = entities;
         AndroidUtilities.runOnUIThread(() -> {
+            forceSubPendingBodies.put(dialogId, finalText);
             SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(finalText, dialogId);
             if (finalEntities != null && !finalEntities.isEmpty()) {
                 params.entities = finalEntities;
@@ -25886,7 +25995,11 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void deleteForceSubMessage(long dialogId) {
+        ensureForceSubLoaded();
+        forceSubRepliedUsers.remove(dialogId);
+        forceSubPendingBodies.remove(dialogId);
         Integer msgId = forceSubSentMessageIds.remove(dialogId);
+        saveForceSubState();
         if (msgId != null && msgId > 0) {
             ArrayList<Integer> ids = new ArrayList<>();
             ids.add(msgId);

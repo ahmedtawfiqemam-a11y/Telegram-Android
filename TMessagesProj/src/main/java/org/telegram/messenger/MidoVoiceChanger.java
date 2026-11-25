@@ -2,7 +2,10 @@ package org.telegram.messenger;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
 
+import android.app.Activity;
 import android.content.Context;
+import android.os.Build;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.LinearLayout;
@@ -14,6 +17,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Locale;
 
 /**
@@ -75,17 +79,21 @@ public class MidoVoiceChanger {
     }
 
     public static void processCallFrame(ByteBuffer buffer, int bytesLen, int sampleRate) {
+        processCallFrame(buffer, bytesLen, sampleRate, 1);
+    }
+
+    public static void processCallFrame(ByteBuffer buffer, int bytesLen, int sampleRate, int channels) {
         if (MidoConfig.voiceChangerMode == MODE_OFF || !MidoConfig.voiceChangerCalls || buffer == null || bytesLen < 2) {
             return;
         }
-        CALL_PROCESSOR.process(buffer, bytesLen, sampleRate, getActivePitchFactor(), MidoConfig.voiceChangerMode == MODE_ROBOT);
+        CALL_PROCESSOR.process(buffer, bytesLen, sampleRate, channels, getActivePitchFactor(), MidoConfig.voiceChangerMode == MODE_ROBOT);
     }
 
     public static void processMessageFrame(ByteBuffer buffer, int bytesLen, int sampleRate) {
         if (MidoConfig.voiceChangerMode == MODE_OFF || !MidoConfig.voiceChangerMessages || buffer == null || bytesLen < 2) {
             return;
         }
-        MESSAGE_PROCESSOR.process(buffer, bytesLen, sampleRate, getActivePitchFactor(), MidoConfig.voiceChangerMode == MODE_ROBOT);
+        MESSAGE_PROCESSOR.process(buffer, bytesLen, sampleRate, 1, getActivePitchFactor(), MidoConfig.voiceChangerMode == MODE_ROBOT);
     }
 
     public static void resetStreams() {
@@ -93,8 +101,24 @@ public class MidoVoiceChanger {
         MESSAGE_PROCESSOR.reset();
     }
 
-    public static void showPresetDialog(Context context, Runnable onChanged) {
+    private static boolean isContextDead(Context context) {
         if (context == null) {
+            return true;
+        }
+        if (context instanceof Activity) {
+            Activity act = (Activity) context;
+            if (act.isFinishing()) {
+                return true;
+            }
+            if (Build.VERSION.SDK_INT >= 17 && act.isDestroyed()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void showPresetDialog(Context context, Runnable onChanged) {
+        if (isContextDead(context)) {
             return;
         }
         final CharSequence[] labels = new CharSequence[]{
@@ -119,11 +143,14 @@ public class MidoVoiceChanger {
                 }
             }
         });
-        builder.show();
+        try {
+            builder.show();
+        } catch (Throwable ignore) {
+        }
     }
 
     public static void showCustomPitchDialog(Context context, Runnable onChanged) {
-        if (context == null) {
+        if (isContextDead(context)) {
             return;
         }
         LinearLayout container = new LinearLayout(context);
@@ -166,106 +193,146 @@ public class MidoVoiceChanger {
             }
         });
         builder.setNegativeButton("إلغاء", null);
-        builder.show();
+        try {
+            builder.show();
+        } catch (Throwable ignore) {
+        }
     }
 
     /**
-     * Lock-free circular buffer pitch shifter with dual overlapping crossfaded read taps.
+     * Zero-allocation circular-buffer pitch shifter with dual raised-cosine (Hann) crossfaded taps.
+     * Supports mono and stereo PCM-16 streams while keeping tempo invariant and clicks eliminated.
      */
     private static final class VoiceStreamProcessor {
         private static final int RING_SIZE = 4096;
         private static final int MASK = RING_SIZE - 1;
         private static final int HALF = RING_SIZE / 2;
+        private static final int MAX_CHANNELS = 2;
 
-        private final float[] ring = new float[RING_SIZE];
-        private int writeIndex = 0;
-        private float delay = HALF;
+        private final float[][] rings = new float[MAX_CHANNELS][RING_SIZE];
+        private final int[] writeIdx = new int[MAX_CHANNELS];
+        private double phase = 0d; // Normalized [0, 1) delay sweep phase across HALF samples
         private double modPhase = 0d;
+        private long lastFrameElapsedMs = 0L;
+        private int lastChannels = 1;
 
         synchronized void reset() {
-            for (int i = 0; i < RING_SIZE; i++) {
-                ring[i] = 0f;
+            for (int c = 0; c < MAX_CHANNELS; c++) {
+                float[] r = rings[c];
+                for (int i = 0; i < RING_SIZE; i++) {
+                    r[i] = 0f;
+                }
+                writeIdx[c] = 0;
             }
-            writeIndex = 0;
-            delay = HALF;
+            phase = 0d;
             modPhase = 0d;
+            lastFrameElapsedMs = 0L;
         }
 
-        synchronized void process(ByteBuffer buffer, int bytesLen, int sampleRate, float pitchFactor, boolean robotMod) {
+        synchronized void process(ByteBuffer buffer, int bytesLen, int sampleRate, int channels, float pitchFactor, boolean robotMod) {
+            long nowMs = SystemClock.elapsedRealtime();
+            if (lastFrameElapsedMs != 0L && (nowMs - lastFrameElapsedMs) > 600L) {
+                reset();
+            }
+            lastFrameElapsedMs = nowMs;
+
             if (sampleRate <= 0) {
                 sampleRate = 48000;
             }
-            int sampleCount = Math.min(bytesLen / 2, buffer.remaining() / 2);
-            if (sampleCount <= 0) {
-                // Fall back to capacity bounds if caller left position == limit
-                sampleCount = Math.min(bytesLen / 2, buffer.capacity() / 2);
+            int ch = Math.max(1, Math.min(MAX_CHANNELS, channels));
+            if (ch != lastChannels) {
+                reset();
+                lastChannels = ch;
             }
-            if (sampleCount <= 0) {
+            int frameBytes = 2 * ch;
+            int totalSamples = Math.min(bytesLen / 2, buffer.remaining() / 2);
+            if (totalSamples <= 0) {
+                totalSamples = Math.min(bytesLen / 2, buffer.capacity() / 2);
+            }
+            int frameCount = totalSamples / ch;
+            if (frameCount <= 0) {
                 return;
             }
 
-            final float delayStep = 1.0f - pitchFactor;
+            final boolean bigEndian = buffer.order() == ByteOrder.BIG_ENDIAN;
+            final double phaseInc = (1.0d - pitchFactor) / (double) HALF;
             final double robotPhaseInc = (2.0d * Math.PI * 72.0d) / sampleRate;
             final int startPos = buffer.position() < buffer.limit() ? buffer.position() : 0;
 
-            for (int i = 0; i < sampleCount; i++) {
-                int byteIdx = startPos + i * 2;
-                if (byteIdx + 1 >= buffer.capacity()) {
-                    break;
+            for (int f = 0; f < frameCount; f++) {
+                phase += phaseInc;
+                if (phase < 0d) {
+                    phase -= Math.floor(phase);
+                } else if (phase >= 1.0d) {
+                    phase -= Math.floor(phase);
                 }
-                int lo = buffer.get(byteIdx) & 0xFF;
-                int hi = buffer.get(byteIdx + 1);
-                short inSample = (short) (lo | (hi << 8));
-
-                ring[writeIndex] = inSample;
-
-                delay += delayStep;
-                while (delay < 0f) {
-                    delay += HALF;
-                }
-                while (delay >= HALF) {
-                    delay -= HALF;
+                double phaseB = phase + 0.5d;
+                if (phaseB >= 1.0d) {
+                    phaseB -= 1.0d;
                 }
 
-                float readA = writeIndex - delay;
-                if (readA < 0f) readA += RING_SIZE;
+                float delayA = (float) (phase * HALF);
+                float delayB = (float) (phaseB * HALF);
+                // Hann windows shifted by 0.5 sum identically to 1.0 and reach 0.0 at wrap points
+                float weightA = (float) (0.5d * (1.0d - Math.cos(2.0d * Math.PI * phase)));
+                float weightB = 1.0f - weightA;
 
-                float delayB = delay + HALF;
-                if (delayB >= RING_SIZE) delayB -= RING_SIZE;
-                float readB = writeIndex - delayB;
-                if (readB < 0f) readB += RING_SIZE;
-
-                float sampleA = readLinear(readA);
-                float sampleB = readLinear(readB);
-
-                // Smooth triangular crossfade across the HALF window boundary to prevent clicks
-                float norm = delay / (float) HALF; // 0..1
-                float weightB = 1.0f - Math.abs(2.0f * norm - 1.0f); // 0 at boundaries, 1 at center
-                float weightA = 1.0f - weightB;
-
-                float out = sampleA * weightA + sampleB * weightB;
-
+                float robotCarrier = 1.0f;
                 if (robotMod) {
-                    float carrier = (float) Math.sin(modPhase);
-                    out = out * (0.55f + 0.45f * carrier);
+                    robotCarrier = 0.55f + 0.45f * (float) Math.sin(modPhase);
                     modPhase += robotPhaseInc;
                     if (modPhase > 2.0d * Math.PI) {
                         modPhase -= 2.0d * Math.PI;
                     }
                 }
 
-                int clamped = Math.round(out);
-                if (clamped > 32767) clamped = 32767;
-                if (clamped < -32768) clamped = -32768;
+                for (int c = 0; c < ch; c++) {
+                    int byteIdx = startPos + f * frameBytes + c * 2;
+                    if (byteIdx + 1 >= buffer.capacity()) {
+                        return;
+                    }
+                    short inSample;
+                    if (bigEndian) {
+                        int hi = buffer.get(byteIdx);
+                        int lo = buffer.get(byteIdx + 1) & 0xFF;
+                        inSample = (short) ((hi << 8) | lo);
+                    } else {
+                        int lo = buffer.get(byteIdx) & 0xFF;
+                        int hi = buffer.get(byteIdx + 1);
+                        inSample = (short) (lo | (hi << 8));
+                    }
 
-                buffer.put(byteIdx, (byte) (clamped & 0xFF));
-                buffer.put(byteIdx + 1, (byte) ((clamped >> 8) & 0xFF));
+                    float[] r = rings[c];
+                    int w = writeIdx[c];
+                    r[w] = inSample;
 
-                writeIndex = (writeIndex + 1) & MASK;
+                    float readA = w - delayA;
+                    if (readA < 0f) readA += RING_SIZE;
+                    float readB = w - delayB;
+                    if (readB < 0f) readB += RING_SIZE;
+
+                    float out = readLinear(r, readA) * weightA + readLinear(r, readB) * weightB;
+                    if (robotMod) {
+                        out *= robotCarrier;
+                    }
+
+                    int clamped = Math.round(out);
+                    if (clamped > 32767) clamped = 32767;
+                    if (clamped < -32768) clamped = -32768;
+
+                    if (bigEndian) {
+                        buffer.put(byteIdx, (byte) ((clamped >> 8) & 0xFF));
+                        buffer.put(byteIdx + 1, (byte) (clamped & 0xFF));
+                    } else {
+                        buffer.put(byteIdx, (byte) (clamped & 0xFF));
+                        buffer.put(byteIdx + 1, (byte) ((clamped >> 8) & 0xFF));
+                    }
+                    writeIdx[c] = (w + 1) & MASK;
+                }
             }
         }
 
-        private float readLinear(float pos) {
+        private static float readLinear(float[] ring, float pos) {
             int idx0 = ((int) pos) & MASK;
             int idx1 = (idx0 + 1) & MASK;
             float frac = pos - (int) pos;

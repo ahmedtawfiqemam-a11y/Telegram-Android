@@ -4060,11 +4060,11 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id == call || id == video_call) {
                     if (currentUser != null && getParentActivity() != null) {
-                        Runnable startCallRun = () -> VoIPHelper.startCall(currentUser, id == video_call, userInfo != null && userInfo.video_calls_available, getParentActivity(), getMessagesController().getUserFull(currentUser.id), getAccountInstance());
-                        if (MidoAntiOopsGuard.shouldGuardCalls(dialog_id)) {
-                            MidoAntiOopsGuard.confirmAction(getParentActivity(), "بدء مكالمة", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً بدء المكالمة؟", startCallRun);
+                        if (MidoAntiOopsGuard.shouldGuardCalls(currentAccount, dialog_id)) {
+                            MidoAntiOopsGuard.confirmAction(getParentActivity(), "بدء مكالمة", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً بدء المكالمة؟",
+                                    () -> VoIPHelper.startCallConfirmed(currentUser, id == video_call, userInfo != null && userInfo.video_calls_available, getParentActivity(), getMessagesController().getUserFull(currentUser.id), getAccountInstance()));
                         } else {
-                            startCallRun.run();
+                            VoIPHelper.startCall(currentUser, id == video_call, userInfo != null && userInfo.video_calls_available, getParentActivity(), getMessagesController().getUserFull(currentUser.id), getAccountInstance());
                         }
                     }
                 } else if (id == change_colors) {
@@ -7478,7 +7478,7 @@ public class ChatActivity extends BaseFragment implements
                     chatActivityEnterView.addStickerToRecent(document);
                     chatActivityEnterView.setFieldText("");
                 });
-                if (MidoAntiOopsGuard.shouldGuardStickers(dialog_id)) {
+                if (MidoAntiOopsGuard.shouldGuardStickers(currentAccount, dialog_id)) {
                     MidoAntiOopsGuard.confirmAction(getParentActivity(), "إرسال ملصق", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً إرسال هذا الملصق؟", doSendSticker);
                 } else {
                     doSendSticker.run();
@@ -33953,7 +33953,7 @@ public class ChatActivity extends BaseFragment implements
             AccountFrozenAlert.show(currentAccount);
             return;
         }
-        if (!midoBypassOopsReaction && MidoAntiOopsGuard.shouldGuardReactions(dialog_id)) {
+        if (!midoBypassOopsReaction && MidoAntiOopsGuard.shouldGuardReactions(currentAccount, dialog_id)) {
             final View finalCell = cell;
             MidoAntiOopsGuard.confirmAction(getParentActivity(), "إرسال تفاعل (Reaction)", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً وضع أو تغيير هذا التفاعل على الرسالة؟", () -> {
                 midoBypassOopsReaction = true;

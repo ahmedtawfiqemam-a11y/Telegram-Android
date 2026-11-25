@@ -122,10 +122,26 @@ public class MidoCurrencyManager {
             }
             return ((currentPrice - base) / base) * 100.0d;
         }
+
+        public CurrencyAsset snapshot() {
+            float[] histArr = new float[history.size()];
+            for (int i = 0; i < history.size(); i++) {
+                histArr[i] = history.get(i);
+            }
+            CurrencyAsset copy = new CurrencyAsset(
+                    id, symbol, nameAr, nameEn, networkTag, category,
+                    badgeColor, badgeAccent, badgeText, coinGeckoId, binanceSymbol, isEgpQuoted,
+                    currentPrice, previousPrice, change24h, histArr
+            );
+            copy.high24h = high24h;
+            copy.low24h = low24h;
+            return copy;
+        }
     }
 
     private static final Object LOCK = new Object();
     private static final ArrayList<CurrencyAsset> ASSETS = new ArrayList<>();
+    private static final ArrayList<Runnable> PENDING_CALLBACKS = new ArrayList<>();
     private static volatile boolean initialized = false;
     private static volatile boolean fetching = false;
     private static volatile long lastUpdatedMs = 0L;
@@ -297,7 +313,11 @@ public class MidoCurrencyManager {
     public static ArrayList<CurrencyAsset> getAssets() {
         ensureInit();
         synchronized (LOCK) {
-            return new ArrayList<>(ASSETS);
+            ArrayList<CurrencyAsset> out = new ArrayList<>(ASSETS.size());
+            for (int i = 0; i < ASSETS.size(); i++) {
+                out.add(ASSETS.get(i).snapshot());
+            }
+            return out;
         }
     }
 
@@ -332,60 +352,74 @@ public class MidoCurrencyManager {
 
     public static void refreshPrices(Runnable onUiComplete) {
         ensureInit();
-        if (fetching) {
-            return;
+        synchronized (LOCK) {
+            if (onUiComplete != null) {
+                PENDING_CALLBACKS.add(onUiComplete);
+            }
+            if (fetching) {
+                return;
+            }
+            fetching = true;
         }
-        fetching = true;
         Utilities.globalQueue.postRunnable(() -> {
             boolean anyLiveSuccess = false;
             try {
                 // 1. CoinGecko batch request (TON, GRAM, NOT, DOGS, USDT, BNB, BTC, ETH, SOL, PAXG)
-                boolean cgOk = fetchFromCoinGecko();
-                if (cgOk) {
-                    anyLiveSuccess = true;
-                }
-            } catch (Throwable e) {
-                FileLog.e(e);
-            }
-
-            try {
-                // 2. Binance fallback / confirmation for top pairs + 24h change
-                if (!anyLiveSuccess) {
-                    boolean bnOk = fetchFromBinance();
-                    if (bnOk) {
+                try {
+                    if (fetchFromCoinGecko()) {
                         anyLiveSuccess = true;
                     }
+                } catch (Throwable e) {
+                    FileLog.e(e);
                 }
-            } catch (Throwable e) {
-                FileLog.e(e);
-            }
 
-            try {
-                // 3. TONAPI for GRAM & TON (fast dedicated Telegram ecosystem backup)
-                fetchGramAndTonFromTonApi();
-            } catch (Throwable ignore) {
-            }
+                // 2. Binance 24h ticker confirmation / live pairs (keeps majors & TON pairs fresh)
+                try {
+                    if (fetchFromBinance()) {
+                        anyLiveSuccess = true;
+                    }
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
 
-            try {
+                // 3. TONAPI for GRAM (jetton master) & TON backup
+                try {
+                    if (fetchGramAndTonFromTonApi()) {
+                        anyLiveSuccess = true;
+                    }
+                } catch (Throwable ignore) {
+                }
+
                 // 4. Live USD -> EGP rate
-                boolean fxOk = fetchUsdToEgp();
-                if (fxOk) {
-                    anyLiveSuccess = true;
+                try {
+                    if (fetchUsdToEgp()) {
+                        anyLiveSuccess = true;
+                    }
+                } catch (Throwable e) {
+                    FileLog.e(e);
                 }
-            } catch (Throwable e) {
-                FileLog.e(e);
-            }
-
-            synchronized (LOCK) {
-                if (anyLiveSuccess) {
-                    lastUpdatedMs = System.currentTimeMillis();
-                    lastSyncLive = true;
-                    saveCacheLocked();
+            } finally {
+                ArrayList<Runnable> callbacksToRun;
+                synchronized (LOCK) {
+                    if (anyLiveSuccess) {
+                        lastUpdatedMs = System.currentTimeMillis();
+                        lastSyncLive = true;
+                        saveCacheLocked();
+                    }
+                    fetching = false;
+                    callbacksToRun = new ArrayList<>(PENDING_CALLBACKS);
+                    PENDING_CALLBACKS.clear();
                 }
-            }
-            fetching = false;
-            if (onUiComplete != null) {
-                AndroidUtilities.runOnUIThread(onUiComplete);
+                if (!callbacksToRun.isEmpty()) {
+                    AndroidUtilities.runOnUIThread(() -> {
+                        for (int i = 0; i < callbacksToRun.size(); i++) {
+                            try {
+                                callbacksToRun.get(i).run();
+                            } catch (Throwable ignore) {
+                            }
+                        }
+                    });
+                }
             }
         });
     }
@@ -451,17 +485,21 @@ public class MidoCurrencyManager {
         return updated;
     }
 
-    private static void fetchGramAndTonFromTonApi() throws Exception {
-        String urlStr = "https://tonapi.io/v2/rates?tokens=ton,gram&currencies=usd";
+    private static boolean fetchGramAndTonFromTonApi() throws Exception {
+        final String gramMaster = "EQC47093oX5Xhb0xuk2lCr2RhS8rj-vul61u4W2UH5ORmG_O";
+        String urlStr = "https://tonapi.io/v2/rates?tokens=ton," + gramMaster + "&currencies=usd";
         String body = httpGet(urlStr);
         if (TextUtils.isEmpty(body)) {
-            return;
+            return false;
         }
         JSONObject root = new JSONObject(body);
         JSONObject rates = root.optJSONObject("rates");
-        if (rates == null) return;
+        if (rates == null) return false;
+        boolean updated = false;
         synchronized (LOCK) {
-            JSONObject gramObj = rates.optJSONObject("GRAM");
+            JSONObject gramObj = rates.optJSONObject(gramMaster);
+            if (gramObj == null) gramObj = rates.optJSONObject("GRAM");
+            if (gramObj == null) gramObj = rates.optJSONObject("gram");
             if (gramObj != null) {
                 JSONObject prices = gramObj.optJSONObject("prices");
                 if (prices != null && prices.has("USD")) {
@@ -470,6 +508,7 @@ public class MidoCurrencyManager {
                         for (int i = 0; i < ASSETS.size(); i++) {
                             if ("GRAM".equals(ASSETS.get(i).id)) {
                                 applyPriceUpdateLocked(ASSETS.get(i), p, ASSETS.get(i).change24h);
+                                updated = true;
                                 break;
                             }
                         }
@@ -477,6 +516,7 @@ public class MidoCurrencyManager {
                 }
             }
         }
+        return updated;
     }
 
     private static boolean fetchUsdToEgp() throws Exception {

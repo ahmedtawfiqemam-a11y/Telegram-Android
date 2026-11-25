@@ -11821,7 +11821,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user.scam || user.fake) {
                     nameTextView.setRightDrawable2(getScamDrawable(user.scam ? 0 : 1));
                     nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.ScamMessage);
-                } else if (user.verified) {
+                } else if (user.verified || (MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user))) {
                     nameTextView.setRightDrawable2(getVerifiedCrossfadeDrawable());
                     nameTextViewRightDrawable2ContentDescription = LocaleController.getString(R.string.AccDescrVerified);
                 } else {
@@ -11829,7 +11829,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     nameTextViewRightDrawable2ContentDescription = null;
                 }
                 if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
-                    nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    if (!(nameTextView.getRightDrawable() instanceof MidoMajorBadgeDrawable)) {
+                        nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    }
                     nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
                 } else if (user != null && !MessagesController.isSupportUser(user) && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
                     rightIconIsStatus = true;
@@ -12089,7 +12091,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (chat.scam || chat.fake) {
                     nameTextView.setRightDrawable2(getScamDrawable(chat.scam ? 0 : 1));
                     nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.ScamMessage);
-                } else if (chat.verified) {
+                } else if (chat.verified || (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat))) {
                     nameTextView.setRightDrawable2(getVerifiedCrossfadeDrawable());
                     nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
                 } else {
@@ -12097,7 +12099,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     nameTextViewRightDrawableContentDescription = null;
                 }
                 if (MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
-                    nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    if (!(nameTextView.getRightDrawable() instanceof MidoMajorBadgeDrawable)) {
+                        nameTextView.setRightDrawable(new MidoMajorBadgeDrawable(22));
+                    }
                     nameTextView.setRightDrawableOutside(true);
                     nameTextViewRightDrawableContentDescription = LocaleController.getString(R.string.AccDescrVerified);
                 } else if (DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {

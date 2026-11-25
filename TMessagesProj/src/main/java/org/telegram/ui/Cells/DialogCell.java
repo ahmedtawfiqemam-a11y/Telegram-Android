@@ -1538,7 +1538,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawPremium = true;
                             nameLayoutEllipsizeByGradient = true;
                             emojiStatus.center = LocaleController.isRTL;
-                            emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            if (!(emojiStatus.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                                emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            }
                             emojiStatus.setParticles(false, false);
                         } else if (DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
                             drawPremium = true;
@@ -1567,7 +1569,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             drawPremium = true;
                             nameLayoutEllipsizeByGradient = true;
                             emojiStatus.center = LocaleController.isRTL;
-                            emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            if (!(emojiStatus.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                                emojiStatus.set(new MidoMajorBadgeDrawable(20), false);
+                            }
                             emojiStatus.setParticles(false, false);
                         } else {
                             drawPremium = MessagesController.getInstance(currentAccount).isPremiumUser(user) && UserConfig.getInstance(currentAccount).clientUserId != user.id && user.id != 0;
@@ -3431,7 +3435,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         user = MessagesController.getInstance(currentAccount).getUser(user.id);
                         if (user != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevUser(user)) {
                             nameLayoutEllipsizeByGradient = true;
-                            emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            if (!(emojiStatus.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                                emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            }
                             emojiStatus.setParticles(false, animated);
                         } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
                             nameLayoutEllipsizeByGradient = true;
@@ -3449,7 +3455,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         chat = MessagesController.getInstance(currentAccount).getChat(chat.id);
                         if (chat != null && MidoConfig.devBadgeEnabled && MidoConfig.isDevChat(chat)) {
                             nameLayoutEllipsizeByGradient = true;
-                            emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            if (!(emojiStatus.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                                emojiStatus.set(new MidoMajorBadgeDrawable(20), animated);
+                            }
                             emojiStatus.setParticles(false, animated);
                         } else if (chat != null && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0)  {
                             nameLayoutEllipsizeByGradient = true;

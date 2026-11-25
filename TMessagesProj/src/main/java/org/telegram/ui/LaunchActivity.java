@@ -7242,22 +7242,28 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (!MidoConfig.welcomeDialogShown && UserConfig.getInstance(currentAccount).isClientActivated()) {
             MidoConfig.setWelcomeDialogShown(true);
             AndroidUtilities.runOnUIThread(() -> {
-                new AlertDialog.Builder(this)
-                    .setTitle("مرحباً بك في تيليجرام ميدو! 🎉")
-                    .setMessage("شكراً لاستخدامك نسخة تيليجرام ميدو المعدلة.\n\nتابع آخر التحديثات والميزات الجديدة وشارك في مجتمع المطور:\n• قناة السورس والتحديثات: @SourceMedo\n• مجموعة الدعم والمناقشة")
-                    .setPositiveButton("الانضمام للقناة", (di, w) -> {
-                        BaseFragment lastFrag = LaunchActivity.getLastFragment();
-                        if (lastFrag != null) {
-                            MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", lastFrag, 1);
-                        } else {
-                            org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/SourceMedo");
-                        }
-                    })
-                    .setNeutralButton("جروب الدعم", (di, w) -> {
-                        org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/+m3DnjfmnWpFmYWVi");
-                    })
-                    .setNegativeButton("لاحقاً", null)
-                    .show();
+                if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) {
+                    return;
+                }
+                try {
+                    new AlertDialog.Builder(this)
+                        .setTitle("مرحباً بك في تيليجرام ميدو! 🎉")
+                        .setMessage("شكراً لاستخدامك نسخة تيليجرام ميدو المعدلة.\n\nتابع آخر التحديثات والميزات الجديدة وشارك في مجتمع المطور:\n• قناة السورس والتحديثات: @SourceMedo\n• مجموعة الدعم والمناقشة")
+                        .setPositiveButton("الانضمام للقناة", (di, w) -> {
+                            BaseFragment lastFrag = LaunchActivity.getLastFragment();
+                            if (lastFrag != null) {
+                                MessagesController.getInstance(currentAccount).openByUserName("SourceMedo", lastFrag, 1);
+                            } else {
+                                org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/SourceMedo");
+                            }
+                        })
+                        .setNeutralButton("جروب الدعم", (di, w) -> {
+                            org.telegram.messenger.browser.Browser.openUrl(LaunchActivity.this, "https://t.me/+m3DnjfmnWpFmYWVi");
+                        })
+                        .setNegativeButton("لاحقاً", null)
+                        .show();
+                } catch (Throwable ignore) {
+                }
             }, 1000);
         }
         Utilities.stageQueue.postRunnable(() -> {
@@ -8637,6 +8643,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public boolean onBackPressed(boolean invoked) {
+        if (midoIdleBlurOverlay != null && midoIdleBlurOverlay.isBlurred()) {
+            if (invoked) midoIdleBlurOverlay.dismissIfBlurred();
+            return false;
+        }
         if (FloatingDebugController.onBackPressed(invoked)) {
             return false;
         }

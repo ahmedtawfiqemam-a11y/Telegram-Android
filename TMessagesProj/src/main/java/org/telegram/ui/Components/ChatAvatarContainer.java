@@ -977,7 +977,9 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             rightDrawable2ContentDescription = null;
         }
         if (midoMajor) {
-            emojiStatusDrawable.set(new MidoMajorBadgeDrawable(22), animated);
+            if (!(emojiStatusDrawable.getDrawable() instanceof MidoMajorBadgeDrawable)) {
+                emojiStatusDrawable.set(new MidoMajorBadgeDrawable(22), animated);
+            }
             titleTextView.setRightDrawable(emojiStatusDrawable);
             rightDrawableIsScamOrVerified = false;
             rightDrawableContentDescription = getString(R.string.AccDescrVerified);

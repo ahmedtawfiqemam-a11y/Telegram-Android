@@ -12526,7 +12526,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                             }
                         };
                         if (!showConfirmAlert(runnable)) {
-                            if (org.telegram.messenger.MidoAntiOopsGuard.shouldGuardStickers(dialog_id)) {
+                            if (org.telegram.messenger.MidoAntiOopsGuard.shouldGuardStickers(currentAccount, dialog_id)) {
                                 org.telegram.messenger.MidoAntiOopsGuard.confirmAction(parentActivity, "إرسال صورة متحركة GIF", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً إرسال الصورة المتحركة؟", runnable);
                             } else {
                                 runnable.run();
@@ -12804,7 +12804,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     MediaDataController.getInstance(currentAccount).addRecentSticker(MediaDataController.TYPE_IMAGE, parent, sticker, (int) (System.currentTimeMillis() / 1000), false);
                 };
                 if (!showConfirmAlert(runnable)) {
-                    if (org.telegram.messenger.MidoAntiOopsGuard.shouldGuardStickers(dialog_id)) {
+                    if (org.telegram.messenger.MidoAntiOopsGuard.shouldGuardStickers(currentAccount, dialog_id)) {
                         org.telegram.messenger.MidoAntiOopsGuard.confirmAction(parentActivity, "إرسال ملصق", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً إرسال هذا الملصق؟", runnable);
                     } else {
                         runnable.run();

@@ -343,7 +343,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabs[INDEX_CONTACTS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CONTACTS, R.string.MainTabsContacts);
         tabs[INDEX_SETTINGS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.SETTINGS, R.string.Settings);
         tabs[INDEX_CALLS] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CALLS, R.string.MainTabsCalls);
-        tabs[INDEX_CURRENCIES] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CURRENCIES, LocaleController.isRTL ? "تتبع العملات" : "Currencies");
+        tabs[INDEX_CURRENCIES] = GlassTabView.createMainTab(context, resourceProvider, GlassTabView.TabAnimation.CURRENCIES, LocaleController.isRTL ? "العملات" : "Markets");
         tabs[INDEX_PROFILE] = GlassTabView.createAvatar(context, resourceProvider, currentAccount, R.string.MainTabsProfile);
         tabs[INDEX_CHATS].setOnLongClickListener(this::openFoldersSelector);
         tabs[INDEX_CONTACTS].setOnLongClickListener(this::openContactsSelector);
@@ -1059,6 +1059,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 if (viewPager.getCurrentPosition() >= getFragmentsCount()) {
                     viewPager.scrollToPosition(POSITION_CHATS);
                 }
+                viewPager.rebuild(false);
                 selectTab(viewPager.getCurrentPosition(), true);
             }
         }

@@ -136,6 +136,10 @@ public class MidoAntiOopsGuard {
     }
 
     public static boolean isDialogGuarded(long dialogId) {
+        return isDialogGuarded(UserConfig.selectedAccount, dialogId);
+    }
+
+    public static boolean isDialogGuarded(int account, long dialogId) {
         if (dialogId == 0) return false;
         ensureLoaded();
         synchronized (LOCK) {
@@ -144,7 +148,7 @@ public class MidoAntiOopsGuard {
             }
         }
         if (guardAllGroups && dialogId < 0) {
-            TLRPC.Chat chat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(-dialogId);
+            TLRPC.Chat chat = MessagesController.getInstance(account).getChat(-dialogId);
             if (chat != null && (!ChatObject.isChannel(chat) || chat.megagroup)) {
                 return true;
             }
@@ -170,21 +174,39 @@ public class MidoAntiOopsGuard {
     }
 
     public static boolean shouldGuardCalls(long dialogId) {
-        return isGuardCalls() && isDialogGuarded(dialogId);
+        return shouldGuardCalls(UserConfig.selectedAccount, dialogId);
+    }
+
+    public static boolean shouldGuardCalls(int account, long dialogId) {
+        return isGuardCalls() && isDialogGuarded(account, dialogId);
     }
 
     public static boolean shouldGuardStickers(long dialogId) {
-        return isGuardStickers() && isDialogGuarded(dialogId);
+        return shouldGuardStickers(UserConfig.selectedAccount, dialogId);
+    }
+
+    public static boolean shouldGuardStickers(int account, long dialogId) {
+        return isGuardStickers() && isDialogGuarded(account, dialogId);
     }
 
     public static boolean shouldGuardReactions(long dialogId) {
-        return isGuardReactions() && isDialogGuarded(dialogId);
+        return shouldGuardReactions(UserConfig.selectedAccount, dialogId);
+    }
+
+    public static boolean shouldGuardReactions(int account, long dialogId) {
+        return isGuardReactions() && isDialogGuarded(account, dialogId);
     }
 
     public static void confirmAction(Context context, String actionTitle, String actionDesc, Runnable onConfirmed) {
         if (context == null) {
             if (onConfirmed != null) onConfirmed.run();
             return;
+        }
+        if (context instanceof android.app.Activity) {
+            android.app.Activity act = (android.app.Activity) context;
+            if (act.isFinishing() || (android.os.Build.VERSION.SDK_INT >= 17 && act.isDestroyed())) {
+                return;
+            }
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle("🛡️ درع اللمس الخاطئ — " + actionTitle);
@@ -195,6 +217,9 @@ public class MidoAntiOopsGuard {
             }
         });
         builder.setNegativeButton("إلغاء", null);
-        builder.show();
+        try {
+            builder.show();
+        } catch (Throwable ignore) {
+        }
     }
 }
