@@ -24,6 +24,7 @@ import android.util.TypedValue;
 import androidx.annotation.NonNull;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MidoConfig;
@@ -263,7 +264,7 @@ public class MidoIdleBlurOverlay extends FrameLayout implements NotificationCent
                         if (!bmp.isRecycled()) {
                             bmp.recycle();
                         }
-                    }, AndroidUtilities.applicationHandler);
+                    }, ApplicationLoader.applicationHandler);
                     return;
                 } catch (Throwable e) {
                     FileLog.e(e);
