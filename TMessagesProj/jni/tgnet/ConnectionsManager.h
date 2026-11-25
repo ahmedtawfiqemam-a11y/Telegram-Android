@@ -138,6 +138,7 @@ private:
     void checkProxyInternal(ProxyCheckInfo *proxyCheckInfo);
 
     int32_t instanceNum = 0;
+    std::atomic<bool> initialized{false};
     uint32_t configVersion = 5;
     Config *config = nullptr;
 

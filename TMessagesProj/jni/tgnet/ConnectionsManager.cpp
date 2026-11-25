@@ -17,6 +17,7 @@
 #include <openssl/rand.h>
 #include <zlib.h>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <cinttypes>
 #include "ConnectionsManager.h"
@@ -138,24 +139,13 @@ ConnectionsManager::~ConnectionsManager() {
 }
 
 ConnectionsManager& ConnectionsManager::getInstance(int32_t instanceNum) {
-    switch (instanceNum) {
-        case 0:
-            static ConnectionsManager instance0(0);
-            return instance0;
-        case 1:
-            static ConnectionsManager instance1(1);
-            return instance1;
-        case 2:
-            static ConnectionsManager instance2(2);
-            return instance2;
-        case 3:
-            static ConnectionsManager instance3(3);
-            return instance3;
-        case 4:
-        default:
-            static ConnectionsManager instance4(4);
-            return instance4;
-    }
+    static ConnectionsManager *instances[MAX_ACCOUNT_COUNT] = {nullptr};
+    static std::once_flag onceFlags[MAX_ACCOUNT_COUNT];
+    int32_t safeNum = (instanceNum >= 0 && instanceNum < MAX_ACCOUNT_COUNT) ? instanceNum : 0;
+    std::call_once(onceFlags[safeNum], [safeNum]() {
+        instances[safeNum] = new ConnectionsManager(safeNum);
+    });
+    return *instances[safeNum];
 }
 
 int ConnectionsManager::callEvents(int64_t now) {
@@ -348,7 +338,9 @@ void *ConnectionsManager::ThreadProc(void *data) {
     if (LOGS_ENABLED) DEBUG_D("network thread started");
     auto networkManager = (ConnectionsManager *) (data);
 #ifdef ANDROID
-    javaVm->AttachCurrentThread(&jniEnv[networkManager->instanceNum], nullptr);
+    if (networkManager->instanceNum >= 0 && networkManager->instanceNum < MAX_ACCOUNT_COUNT) {
+        javaVm->AttachCurrentThread(&jniEnv[networkManager->instanceNum], nullptr);
+    }
 #endif
     if (networkManager->currentUserId != 0 && networkManager->pushConnectionEnabled) {
         Datacenter *datacenter = networkManager->getDatacenterWithId(networkManager->currentDatacenterId);
@@ -3720,6 +3712,9 @@ void ConnectionsManager::applyDnsConfig(NativeByteBuffer *buffer, std::string ph
 }
 
 void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool userPremium, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType, int32_t performanceClass) {
+    if (initialized.exchange(true)) {
+        return;
+    }
     currentVersion = version;
     currentLayer = layer;
     currentApiId = apiId;
