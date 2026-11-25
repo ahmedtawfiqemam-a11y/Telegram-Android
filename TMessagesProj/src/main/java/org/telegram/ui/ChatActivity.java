@@ -33954,10 +33954,11 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         if (!midoBypassOopsReaction && MidoAntiOopsGuard.shouldGuardReactions(dialog_id)) {
+            final View finalCell = cell;
             MidoAntiOopsGuard.confirmAction(getParentActivity(), "إرسال تفاعل (Reaction)", "هذه المحادثة محمية بدرع اللمس الخاطئ 🛡️\nهل تريد فعلاً وضع أو تغيير هذا التفاعل على الرسالة؟", () -> {
                 midoBypassOopsReaction = true;
                 try {
-                    selectReaction(cell, primaryMessage, reactionsLayout, fromView, x, y, visibleReaction, fromDoubleTap, bigEmoji, addToRecent, withoutAnimation);
+                    selectReaction(finalCell, primaryMessage, reactionsLayout, fromView, x, y, visibleReaction, fromDoubleTap, bigEmoji, addToRecent, withoutAnimation);
                 } finally {
                     midoBypassOopsReaction = false;
                 }

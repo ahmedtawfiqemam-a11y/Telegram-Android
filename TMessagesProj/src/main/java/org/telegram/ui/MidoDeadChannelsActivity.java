@@ -502,7 +502,7 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
             head.addView(selAllBtn, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
 
             LinearLayout row = new LinearLayout(context);
-            row.setOrientation(HORIZONTAL);
+            row.setOrientation(LinearLayout.HORIZONTAL);
             addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
             row.addView(makeBox(context, "+3 أشهر", String.valueOf(count3M), 0xFFF59E0B),
@@ -545,7 +545,7 @@ public class MidoDeadChannelsActivity extends BaseFragment implements Notificati
             setClipToPadding(false);
 
             LinearLayout row = new LinearLayout(context);
-            row.setOrientation(HORIZONTAL);
+            row.setOrientation(LinearLayout.HORIZONTAL);
             addView(row, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
 
             addChip(context, row, FILTER_3_MONTHS, "متوقفة 3+ أشهر (" + count3M + ")");

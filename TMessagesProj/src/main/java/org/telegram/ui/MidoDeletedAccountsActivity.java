@@ -508,7 +508,7 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
             head.addView(selAllBtn, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
 
             LinearLayout row = new LinearLayout(context);
-            row.setOrientation(HORIZONTAL);
+            row.setOrientation(LinearLayout.HORIZONTAL);
             addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
             row.addView(makeStatBox(context, "محذوفة 👻", String.valueOf(countDeleted), 0xFFE53935),
@@ -551,7 +551,7 @@ public class MidoDeletedAccountsActivity extends BaseFragment implements Notific
             setClipToPadding(false);
 
             LinearLayout row = new LinearLayout(context);
-            row.setOrientation(HORIZONTAL);
+            row.setOrientation(LinearLayout.HORIZONTAL);
             addView(row, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
 
             addChip(context, row, CAT_ALL, "الكل (" + allEntries.size() + ")");
